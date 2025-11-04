@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "364314355243",
+    "project_id": "pos-umkm-4705f",
+    "storage_bucket": "pos-umkm-4705f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:364314355243:android:685bf100a50fd1a616ac6e",
+        "android_client_info": {
+          "package_name": "com.example.erp_umkm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKTAoI77yu84kaIPg2Nx0RmryfHMNggXw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
