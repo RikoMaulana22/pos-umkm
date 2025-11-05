@@ -53,7 +53,7 @@ flutter:
   assets:
     # Baris ini harus menjorok 2 spasi di bawah 'assets:'
     - assets/images/
-
+    - assets/images/qris_dana.jpg
   # 'fonts:' harus sejajar dengan 'assets:'
   # fonts:
   #   - family: Poppins

@@ -109,23 +109,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       text: "Login",
                     ),
                     const SizedBox(height: 50),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Belum punya akun?'),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: widget.onRegisterTap,
-                          child: Text(
-                            'Register',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
                   ],
                 ),
               ),

@@ -1,13 +1,14 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart'; // Kita sudah tambahkan ini di pubspec
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
-import 'features/splash/splash_screen.dart'; // Impor Splash Screen
-import 'shared/theme.dart'; // Impor Tema
-import 'features/home/home_screen.dart';
-// Kita akan buat CartProvider nanti saat mengerjakan fitur Kasir
-// import 'features/pos/providers/cart_provider.dart';
+// import 'features/splash/splash_screen.dart'; // Kita nonaktifkan sementara
+import 'shared/theme.dart';
+import 'features/pos/providers/cart_provider.dart';
+
+// IMPOR LANGSUNG HomeScreen
+import 'features/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,18 +16,12 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Ganti ini saat Anda siap dengan fitur keranjang (cart)
-  runApp(const MyApp());
-
-  /*
-  // Nanti, kita akan gunakan ini:
   runApp(
     ChangeNotifierProvider(
-      create: (context) => CartProvider(), // Ini untuk state keranjang
+      create: (context) => CartProvider(),
       child: const MyApp(),
     ),
   );
-  */
 }
 
 class MyApp extends StatelessWidget {
@@ -40,9 +35,15 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
         useMaterial3: true,
-        scaffoldBackgroundColor: Colors.white, // Set background putih
+        scaffoldBackgroundColor: Colors.white,
       ),
-      home: const HomeScreen(), // Mulai aplikasi dari Home Screen
+      
+      // PERUBAHAN DI SINI:
+      // Kita langsung ke HomeScreen dan memberinya ID palsu
+      home: const SplashScreen(), 
+      
+      // JANGAN LUPA KEMBALIKAN KE SplashScreen NANTI:
+      // home: const SplashScreen(), 
     );
   }
 }

@@ -1,20 +1,28 @@
+// lib/features/inventory/screens/inventory_screen.dart
 import 'package:flutter/material.dart';
-import '../services/inventory_service.dart'; //
-import '../models/product_model.dart'; //
+import 'package:intl/intl.dart';
+import '../services/inventory_service.dart';
+import '../models/product_model.dart';
+import 'add_product_screen.dart';
+import 'edit_product_screen.dart'; // <-- 1. IMPOR HALAMAN EDIT
+import '../../../shared/theme.dart';
 
 class InventoryScreen extends StatelessWidget {
-  final String storeId; // 1. TERIMA storeId
-  const InventoryScreen({super.key, required this.storeId}); // 2. Modifikasi constructor
+  final String storeId;
+  const InventoryScreen({super.key, required this.storeId});
 
   @override
   Widget build(BuildContext context) {
-    // Buat instance service di dalam build (atau gunakan Provider)
     final InventoryService _inventoryService = InventoryService();
+    final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Inventaris (Produk)')),
+      appBar: AppBar(
+        title: const Text('Inventaris (Produk)'),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
       body: StreamBuilder<List<Product>>(
-        // 3. KIRIM storeId ke service untuk filtering
         stream: _inventoryService.getProducts(storeId), 
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -30,6 +38,15 @@ class InventoryScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final product = products[index];
               return ListTile(
+                // 2. BUAT AGAR BISA DI-KLIK
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditProductScreen(product: product),
+                    ),
+                  );
+                },
                 leading: CircleAvatar(
                   backgroundImage: (product.imageUrl != null)
                       ? NetworkImage(product.imageUrl!)
@@ -39,8 +56,11 @@ class InventoryScreen extends StatelessWidget {
                       : null,
                 ),
                 title: Text(product.name),
-                subtitle: Text("Stok: ${product.stok}"),
-                trailing: Text("Rp ${product.hargaJual.toStringAsFixed(0)}"),
+                subtitle: Text("Stok: ${product.stok} | Modal: ${formatCurrency.format(product.hargaModal)}"),
+                trailing: Text(
+                  formatCurrency.format(product.hargaJual),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               );
             },
           );
@@ -48,10 +68,16 @@ class InventoryScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Nanti kita buat halaman 'AddProductScreen'
-          // Navigator.push(context, MaterialPageRoute(builder: (context) => AddProductScreen(storeId: storeId)));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddProductScreen(storeId: storeId),
+            ),
+          );
         },
         child: const Icon(Icons.add),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
       ),
     );
   }

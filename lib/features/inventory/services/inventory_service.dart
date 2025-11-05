@@ -1,7 +1,5 @@
 // lib/features/inventory/services/inventory_service.dart
-import 'dart:io'; // Untuk 'File' gambar
-
-// PERBAIKAN: Gunakan 'package:' (titik dua), bukan 'package.' (titik)
+import 'dart:typed_data'; // <-- 1. IMPOR INI
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,29 +10,30 @@ class InventoryService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-
   String? get _userId => _auth.currentUser?.uid;
 
-  // ==========================================================
-  // 1. FUNGSI TAMBAH PRODUK BARU
-  // ==========================================================
+  // 1. FUNGSI TAMBAH PRODUK BARU (Diperbarui)
   Future<void> addProduct({
     required String name,
     required double hargaModal,
     required double hargaJual,
     required int stok,
-    required File imageFile,
+    required Uint8List imageBytes, // <-- 2. GANTI DARI FILE KE BYTES
+    required String imageName,    
     required String storeId,
   }) async {
     if (_userId == null) throw Exception("User tidak login");
 
     try {
+      String fileExtension = imageName.split('.').last;
       String fileName =
-          'products/$storeId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-      UploadTask uploadTask = _storage.ref().child(fileName).putFile(imageFile);
+          'products/$storeId/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      
+      // 3. GUNAKAN 'putData' (untuk bytes) BUKAN 'putFile'
+      UploadTask uploadTask = _storage.ref().child(fileName).putData(imageBytes); 
+      
       TaskSnapshot snapshot = await uploadTask;
       String downloadUrl = await snapshot.ref.getDownloadURL();
-
 
       Product product = Product(
         name: name,
@@ -46,7 +45,7 @@ class InventoryService {
       );
 
       Map<String, dynamic> productData = product.toMap();
-      productData['storeId'] = storeId;
+      productData['storeId'] = storeId; 
 
       await _firestore.collection('products').add(productData);
     } on FirebaseException catch (e) {
@@ -56,16 +55,13 @@ class InventoryService {
     }
   }
 
-  // ==========================================================
-  // 2. FUNGSI MENGAMBIL SEMUA PRODUK (berdasarkan Toko)
-  // ==========================================================
+  // 2. FUNGSI MENGAMBIL PRODUK
   Stream<List<Product>> getProducts(String storeId) {
     if (_userId == null) return Stream.value([]);
-
     return _firestore
         .collection('products')
-        .where('storeId', isEqualTo: storeId)
-        .orderBy('timestamp', descending: true)
+        .where('storeId', isEqualTo: storeId) 
+        .orderBy('timestamp', descending: true) 
         .snapshots()
         .map((snapshot) {
       return snapshot.docs
@@ -74,12 +70,11 @@ class InventoryService {
     });
   }
 
-  // ==========================================================
-  // 3. FUNGSI UPDATE PRODUK
-  // ==========================================================
+  // 3. FUNGSI UPDATE PRODUK (Diperbarui)
   Future<void> updateProduct({
     required Product product,
-    File? newImageFile,
+    Uint8List? newImageBytes, // <-- 4. GANTI DARI FILE KE BYTES
+    String? newImageName,
   }) async {
     if (product.id == null) throw Exception("ID Produk tidak valid");
     if (_userId == null) throw Exception("User tidak login");
@@ -87,7 +82,7 @@ class InventoryService {
     try {
       String? newImageUrl = product.imageUrl;
 
-      if (newImageFile != null) {
+      if (newImageBytes != null && newImageName != null) {
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
           try {
             await _storage.refFromURL(product.imageUrl!).delete();
@@ -96,10 +91,13 @@ class InventoryService {
           }
         }
 
+        String fileExtension = newImageName.split('.').last;
         String fileName =
-            'products/${product.createdBy}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+            'products/${product.createdBy}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+        
+        // 5. GUNAKAN 'putData' (untuk bytes)
         UploadTask uploadTask =
-            _storage.ref().child(fileName).putFile(newImageFile);
+            _storage.ref().child(fileName).putData(newImageBytes);
         TaskSnapshot snapshot = await uploadTask;
         newImageUrl = await snapshot.ref.getDownloadURL();
       }
@@ -123,9 +121,7 @@ class InventoryService {
     }
   }
 
-  // ==========================================================
   // 4. FUNGSI HAPUS PRODUK
-  // ==========================================================
   Future<void> deleteProduct(String productId) async {
     if (_userId == null) throw Exception("User tidak login");
 
