@@ -5,7 +5,7 @@ import 'package:provider/provider.dart'; // Kita sudah tambahkan ini di pubspec
 import 'firebase_options.dart';
 import 'features/splash/splash_screen.dart'; // Impor Splash Screen
 import 'shared/theme.dart'; // Impor Tema
-
+import 'features/home/home_screen.dart';
 // Kita akan buat CartProvider nanti saat mengerjakan fitur Kasir
 // import 'features/pos/providers/cart_provider.dart';
 
@@ -42,7 +42,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.white, // Set background putih
       ),
-      home: const SplashScreen(), // Mulai aplikasi dari Splash Screen
+      home: const HomeScreen(), // Mulai aplikasi dari Home Screen
     );
   }
 }
