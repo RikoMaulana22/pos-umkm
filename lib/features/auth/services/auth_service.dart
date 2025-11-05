@@ -3,54 +3,119 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
-  // Instance dari Firebase Auth & Firestore
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 1. Fungsi Sign In (Login)
-  Future<UserCredential> signInWithEmailPassword(String email, String password) async {
+  // ==========================================================
+  // 1. FUNGSI SIGN IN (LOGIN)
+  // ==========================================================
+  Future<UserCredential> signInWithEmailPassword(
+      String email, String password) async {
     try {
-      // Mencoba login dengan email & password
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       return userCredential;
-    } 
-    // Menangkap jika ada error
-    on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (e) {
+      // Menangkap error spesifik Firebase
       throw Exception(e.message);
+    } catch (e) {
+      // Menangkap error umum lainnya (misal: tidak ada internet)
+      throw Exception(e.toString());
     }
   }
 
-  // 2. Fungsi Sign Up (Register)
-  Future<UserCredential> signUpWithEmailPassword(String email, String password, String username) async {
+  // ==========================================================
+  // 2. FUNGSI SIGN UP (REGISTER) UNTUK ADMIN (PEMILIK TOKO)
+  // ==========================================================
+  Future<UserCredential> signUpAdmin({
+    required String email,
+    required String password,
+    required String username,
+    required String storeName,
+  }) async {
     try {
       // 1. Buat user baru di Firebase Auth
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // 2. Simpan data user (username) di koleksi 'users' di Firestore
-      // Ini PENTING agar kita bisa tahu siapa nama user yang login
-      _firestore.collection('users').doc(userCredential.user!.uid).set({
+      // 2. BUAT TOKO BARU di koleksi 'stores'
+      DocumentReference storeDoc = await _firestore.collection('stores').add({
+        'name': storeName,
+        'ownerId': userCredential.user!.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 3. Simpan data user (sebagai 'admin')
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'uid': userCredential.user!.uid,
         'email': email,
         'username': username,
-        // Anda bisa tambahkan data lain di sini, misal: 'role': 'kasir'
+        'role': 'admin',
+        'storeId': storeDoc.id,
       });
 
       return userCredential;
-    } 
-    // Menangkap jika ada error
-    on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (e) {
+      // Menangkap error spesifik Firebase
       throw Exception(e.message);
+    } catch (e) {
+      // Menangkap error umum lainnya
+      throw Exception(e.toString());
     }
   }
 
-  // 3. Fungsi Sign Out (Logout)
+  // ==========================================================
+  // 3. FUNGSI BUAT KASIR BARU (Dipanggil oleh Admin)
+  // ==========================================================
+  Future<void> createCashier({
+    required String email,
+    required String password,
+    required String username,
+    required String storeId,
+  }) async {
+    try {
+      // (Komentar tentang batasan SDK klien tetap berlaku)
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Simpan data kasir di Firestore
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
+        'email': email,
+        'username': username,
+        'role': 'kasir',
+        'storeId': storeId,
+      });
+    } on FirebaseAuthException catch (e) {
+      // Menangkap error spesifik Firebase
+      throw Exception(e.message);
+    } catch (e) {
+      // Menangkap error umum lainnya
+      throw Exception(e.toString());
+    }
+  }
+
+  // ==========================================================
+  // 4. FUNGSI SIGN OUT (LOGOUT)
+  // ==========================================================
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } on FirebaseAuthException catch (e) {
+      // Menangkap error spesifik Firebase
+      throw Exception(e.message);
+    } catch (e) {
+      // PERBAIKAN DI SINI:
+      // Mengganti e.message (yang tidak ada) menjadi e.toString()
+      throw Exception(e.toString());
+    }
   }
 }

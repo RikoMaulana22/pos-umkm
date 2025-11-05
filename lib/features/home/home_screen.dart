@@ -3,14 +3,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../shared/theme.dart';
 import 'widgets/dashboard_button.dart';
-import '../../shared/widgets/curved_header_clipper.dart'; // <-- IMPOR CLIPPER KITA
+import '../../shared/widgets/curved_header_clipper.dart';
+
+// Impor semua halaman yang akan dituju
 import '../pos/screens/pos_screen.dart';
 import '../inventory/screens/inventory_screen.dart';
 import '../reports/screens/report_screen.dart';
 import '../settings/screens/settings_screen.dart';
+import '../admin/screens/add_cashier_screen.dart'; 
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  // 1. TAMBAHKAN INI: Terima storeId
+  final String storeId;
+  const HomeScreen({super.key, required this.storeId});
 
   void signOut() {
     FirebaseAuth.instance.signOut();
@@ -28,38 +33,30 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          // ===========================================
-          // HEADER KUSTOM BARU DENGAN DUA LAPISAN
-          // ===========================================
+          // Header Kustom
           Container(
-            // Bungkus ClipPath dalam Container untuk memberi tinggi tetap
-            height: 150, // Sesuaikan tinggi sesuai keinginan
+            height: 150,
             width: double.infinity,
             child: Stack(
               children: [
-                // LAPISAN BAWAH (lebih terang, sedikit ke kiri dan atas)
                 Positioned(
-                  // Geser sedikit ke kiri dan atas
-                  left: -95,
-                  top: -15,
+                  left: -10,
+                  top: -10,
                   child: ClipPath(
                     clipper: CurvedHeaderClipper(),
                     child: Container(
-                      height: 165, // Sedikit lebih tinggi dari lapisan atas
-                      width: MediaQuery.of(context).size.width +
-                          100, // Sedikit lebih lebar
-                      color: const Color.fromARGB(255, 64, 204, 102).withOpacity(
-                          0.7), // Warna yang lebih terang atau berbeda
+                      height: 160,
+                      width: MediaQuery.of(context).size.width + 20,
+                      color: primaryColor.withOpacity(0.7),
                     ),
                   ),
                 ),
-                // LAPISAN ATAS (warna utama)
                 ClipPath(
                   clipper: CurvedHeaderClipper(),
                   child: Container(
-                    height: 550, // Tinggi yang sama dengan Container pembungkus
+                    height: 150,
                     width: double.infinity,
-                    color: const Color.fromARGB(255, 42, 161, 144), // Warna utama
+                    color: primaryColor,
                     child: SafeArea(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -89,10 +86,8 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
-
-          // ===========================================
-          // KONTEN HALAMAN (GRID MENU)
-          // ===========================================
+          
+          // Konten Halaman (Grid Menu)
           Expanded(
             child: Stack(
               children: [
@@ -110,6 +105,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: GridView.count(
@@ -118,25 +114,33 @@ class HomeScreen extends StatelessWidget {
                     mainAxisSpacing: 16,
                     childAspectRatio: 1.1,
                     children: [
+                      // 2. PASTIKAN SEMUA TOMBOL MENGIRIM storeId
                       DashboardButton(
                         label: "Transaksi (Kasir)",
                         icon: Icons.point_of_sale,
-                        onTap: () => _goTo(context, const PosScreen()),
+                        onTap: () => _goTo(context, PosScreen(storeId: storeId)),
                       ),
                       DashboardButton(
                         label: "Produk (Inventaris)",
                         icon: Icons.inventory_2,
-                        onTap: () => _goTo(context, const InventoryScreen()),
+                        onTap: () => _goTo(context, InventoryScreen(storeId: storeId)),
                       ),
                       DashboardButton(
                         label: "Laporan",
                         icon: Icons.bar_chart,
-                        onTap: () => _goTo(context, const ReportScreen()),
+                        onTap: () => _goTo(context, ReportScreen(storeId: storeId)),
                       ),
                       DashboardButton(
                         label: "Pengaturan",
                         icon: Icons.settings,
-                        onTap: () => _goTo(context, const SettingsScreen()),
+                        onTap: () => _goTo(context, SettingsScreen(storeId: storeId)),
+                      ),
+                      DashboardButton(
+                        label: "Tambah Kasir",
+                        icon: Icons.person_add,
+                        onTap: () {
+                          _goTo(context, AddCashierScreen(storeId: storeId));
+                        },
                       ),
                     ],
                   ),

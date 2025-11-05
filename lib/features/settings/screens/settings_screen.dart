@@ -2,14 +2,15 @@
 import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final String storeId; // Terima storeId
+  const SettingsScreen({super.key, required this.storeId});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Pengaturan')),
-      body: const Center(
-        child: Text('Halaman Pengaturan'),
+      body: Center(
+        child: Text('Halaman Pengaturan untuk Toko ID: ${storeId}'),
       ),
     );
   }

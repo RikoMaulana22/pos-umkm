@@ -2,14 +2,15 @@
 import 'package:flutter/material.dart';
 
 class ReportScreen extends StatelessWidget {
-  const ReportScreen({super.key});
+  final String storeId; // Terima storeId
+  const ReportScreen({super.key, required this.storeId});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Laporan')),
-      body: const Center(
-        child: Text('Halaman Laporan'),
+      body: Center(
+        child: Text('Halaman Laporan untuk Toko ID: ${storeId}'),
       ),
     );
   }

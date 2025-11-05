@@ -1,5 +1,7 @@
 // lib/features/inventory/services/inventory_service.dart
 import 'dart:io'; // Untuk 'File' gambar
+
+// PERBAIKAN: Gunakan 'package:' (titik dua), bukan 'package.' (titik)
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,28 +12,30 @@ class InventoryService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Mendapatkan ID user yang sedang login
+
   String? get _userId => _auth.currentUser?.uid;
 
-  // 1. Tambah Produk Baru
+  // ==========================================================
+  // 1. FUNGSI TAMBAH PRODUK BARU
+  // ==========================================================
   Future<void> addProduct({
     required String name,
     required double hargaModal,
     required double hargaJual,
     required int stok,
-    required File imageFile, // File gambar dari image_picker
+    required File imageFile,
+    required String storeId,
   }) async {
     if (_userId == null) throw Exception("User tidak login");
 
     try {
-      // 1. Upload Gambar ke Firebase Storage
-      // Membuat nama file yang unik berdasarkan waktu
-      String fileName = 'products/${_userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      String fileName =
+          'products/$storeId/${DateTime.now().millisecondsSinceEpoch}.jpg';
       UploadTask uploadTask = _storage.ref().child(fileName).putFile(imageFile);
       TaskSnapshot snapshot = await uploadTask;
       String downloadUrl = await snapshot.ref.getDownloadURL();
 
-      // 2. Buat objek Product
+
       Product product = Product(
         name: name,
         hargaModal: hargaModal,
@@ -41,22 +45,27 @@ class InventoryService {
         createdBy: _userId!,
       );
 
-      // 3. Simpan data Product ke Firestore
-      await _firestore.collection('products').add(product.toMap());
-      
+      Map<String, dynamic> productData = product.toMap();
+      productData['storeId'] = storeId;
+
+      await _firestore.collection('products').add(productData);
+    } on FirebaseException catch (e) {
+      throw Exception(e.message);
     } catch (e) {
-      throw Exception("Gagal menambah produk: $e");
+      throw Exception("Gagal menambah produk: ${e.toString()}");
     }
   }
 
-  // 2. Mengambil SEMUA produk (untuk ditampilkan di daftar)
-  Stream<List<Product>> getProducts() {
-    if (_userId == null) return Stream.value([]); // Kembalikan list kosong jika user out
+  // ==========================================================
+  // 2. FUNGSI MENGAMBIL SEMUA PRODUK (berdasarkan Toko)
+  // ==========================================================
+  Stream<List<Product>> getProducts(String storeId) {
+    if (_userId == null) return Stream.value([]);
 
     return _firestore
         .collection('products')
-        // .where('createdBy', isEqualTo: _userId) // Opsional: jika ingin produk per user
-        .orderBy('timestamp', descending: true) // Tampilkan yang terbaru di atas
+        .where('storeId', isEqualTo: storeId)
+        .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs
@@ -65,26 +74,81 @@ class InventoryService {
     });
   }
 
-  // 3. Update Produk (Nanti dipakai di Halaman Edit)
-  Future<void> updateProduct(Product product) async {
+  // ==========================================================
+  // 3. FUNGSI UPDATE PRODUK
+  // ==========================================================
+  Future<void> updateProduct({
+    required Product product,
+    File? newImageFile,
+  }) async {
     if (product.id == null) throw Exception("ID Produk tidak valid");
+    if (_userId == null) throw Exception("User tidak login");
+
     try {
+      String? newImageUrl = product.imageUrl;
+
+      if (newImageFile != null) {
+        if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+          try {
+            await _storage.refFromURL(product.imageUrl!).delete();
+          } catch (e) {
+            print("Gagal hapus gambar lama: $e");
+          }
+        }
+
+        String fileName =
+            'products/${product.createdBy}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+        UploadTask uploadTask =
+            _storage.ref().child(fileName).putFile(newImageFile);
+        TaskSnapshot snapshot = await uploadTask;
+        newImageUrl = await snapshot.ref.getDownloadURL();
+      }
+
+      Map<String, dynamic> updatedData = {
+        'name': product.name,
+        'hargaModal': product.hargaModal,
+        'hargaJual': product.hargaJual,
+        'stok': product.stok,
+        'imageUrl': newImageUrl,
+      };
+
       await _firestore
           .collection('products')
           .doc(product.id)
-          .update(product.toMap());
+          .update(updatedData);
+    } on FirebaseException catch (e) {
+      throw Exception(e.message);
     } catch (e) {
-      throw Exception("Gagal update produk: $e");
+      throw Exception("Gagal update produk: ${e.toString()}");
     }
   }
 
-  // 4. Hapus Produk (Nanti dipakai di Halaman Edit)
+  // ==========================================================
+  // 4. FUNGSI HAPUS PRODUK
+  // ==========================================================
   Future<void> deleteProduct(String productId) async {
+    if (_userId == null) throw Exception("User tidak login");
+
     try {
-      // TODO: Hapus juga gambar di Firebase Storage
+      DocumentSnapshot doc =
+          await _firestore.collection('products').doc(productId).get();
+      
+      if (!doc.exists) throw Exception("Produk tidak ditemukan");
+
+      String? imageUrl = (doc.data() as Map<String, dynamic>)['imageUrl'];
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        try {
+          await _storage.refFromURL(imageUrl).delete();
+        } catch (e) {
+          print("Gagal hapus gambar dari storage: $e");
+        }
+      }
+
       await _firestore.collection('products').doc(productId).delete();
+    } on FirebaseException catch (e) {
+      throw Exception(e.message);
     } catch (e) {
-      throw Exception("Gagal menghapus produk: $e");
+      throw Exception("Gagal menghapus produk: ${e.toString()}");
     }
   }
 }
