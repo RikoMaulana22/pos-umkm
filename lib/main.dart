@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
-// import 'features/splash/splash_screen.dart'; // Kita nonaktifkan sementara
+import 'features/splash/splash_screen.dart'; // Kita nonaktifkan sementara
 import 'shared/theme.dart';
 import 'features/pos/providers/cart_provider.dart';
+//import 'features/superadmin/screens/superadmin_dashboard.dart';
 
 // IMPOR LANGSUNG HomeScreen
-import 'features/splash/splash_screen.dart';
+//import 'features/home/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,13 +38,13 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.white,
       ),
-      
+
       // PERUBAHAN DI SINI:
       // Kita langsung ke HomeScreen dan memberinya ID palsu
-      home: const SplashScreen(), 
-      
+      //home: const SuperAdminDashboard(),
+
       // JANGAN LUPA KEMBALIKAN KE SplashScreen NANTI:
-      // home: const SplashScreen(), 
+      home: const SplashScreen(),
     );
   }
 }

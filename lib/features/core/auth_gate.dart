@@ -7,7 +7,7 @@ import '../auth/screens/login_or_register.dart';
 import '../home/home_screen.dart';
 import '../pos/screens/pos_screen.dart';
 import '../superadmin/screens/superadmin_dashboard.dart';
-import 'subscription_expired_screen.dart'; // <-- IMPOR HALAMAN BLOKER
+import 'subscription_expired_screen.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -30,68 +30,80 @@ class AuthGate extends StatelessWidget {
                 .doc(authSnapshot.data!.uid)
                 .snapshots(),
             builder: (context, userSnapshot) {
-              
+              // 3. Lagi loading data role
               if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()));
               }
 
+              // 4. Gagal ambil data role
+              // PERBAIKAN DI SINI:
               if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                // Data user tidak ada di firestore, paksa logout
-                FirebaseAuth.instance.signOut(); 
+                // HAPUS BARIS 'FirebaseAuth.instance.signOut();'
+                // Cukup kembalikan ke login, jangan paksa logout
                 return const LoginOrRegister();
               }
 
-              // 3. Data role ada, kita ambil
-              final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+              // 5. Data role ada, kita arahkan
+              final userData =
+                  userSnapshot.data!.data() as Map<String, dynamic>;
               final String role = userData['role'] ?? 'unknown';
               final String? storeId = userData['storeId'];
 
-              // 4. LOGIKA PERAN (ROLE)
+              // 6. LOGIKA PERAN (ROLE)
               switch (role) {
                 case 'superadmin':
-                  // Super Admin tidak terikat langganan
                   return const SuperAdminDashboard();
 
                 case 'admin':
                 case 'kasir':
-                  // Admin dan Kasir HARUS punya storeId
                   if (storeId == null) {
-                    return const Scaffold(body: Center(child: Text("Error: Akun tidak terikat ke toko.")));
+                    return const Scaffold(
+                        body: Center(
+                            child: Text("Error: Akun tidak terikat ke toko.")));
                   }
-                  
-                  // 5. LOGIKA LANGGANAN (Subscription)
-                  // Kita cek status langganan tokonya
+
+                  // 7. LOGIKA LANGGANAN (Subscription)
                   return StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance.collection('stores').doc(storeId).snapshots(),
+                    stream: FirebaseFirestore.instance
+                        .collection('stores')
+                        .doc(storeId)
+                        .snapshots(),
                     builder: (context, storeSnapshot) {
-                      if (storeSnapshot.connectionState == ConnectionState.waiting) {
-                        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                      if (storeSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Scaffold(
+                            body: Center(child: CircularProgressIndicator()));
                       }
 
-                      if (!storeSnapshot.hasData || !storeSnapshot.data!.exists) {
-                        return const Scaffold(body: Center(child: Text("Error: Toko tidak ditemukan.")));
+                      if (!storeSnapshot.hasData ||
+                          !storeSnapshot.data!.exists) {
+                        return const Scaffold(
+                            body: Center(
+                                child: Text("Error: Toko tidak ditemukan.")));
                       }
 
-                      final storeData = storeSnapshot.data!.data() as Map<String, dynamic>;
-                      final Timestamp? expiryDate = storeData['subscriptionExpiry'];
+                      final storeData =
+                          storeSnapshot.data!.data() as Map<String, dynamic>;
+                      final Timestamp? expiryDate =
+                          storeData['subscriptionExpiry'];
 
-                      // Cek jika langganan aktif
-                      if (expiryDate != null && expiryDate.toDate().isAfter(DateTime.now())) {
-                        // Langganan Aktif, arahkan berdasarkan role
+                      if (expiryDate != null &&
+                          expiryDate.toDate().isAfter(DateTime.now())) {
                         if (role == 'admin') {
                           return HomeScreen(storeId: storeId);
                         } else {
                           return PosScreen(storeId: storeId);
                         }
                       } else {
-                        // Langganan Habis/Tidak Ditemukan
+                        // Langganan Habis
                         return const SubscriptionExpiredScreen();
                       }
                     },
                   );
-                  
+
                 default:
-                  // Role tidak dikenal
+                  // Role tidak dikenal ('unknown')
                   return const LoginOrRegister();
               }
             },

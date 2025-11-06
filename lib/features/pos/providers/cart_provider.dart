@@ -7,6 +7,14 @@ class CartProvider with ChangeNotifier {
   final List<CartItem> _items = [];
 
   List<CartItem> get items => _items;
+  
+  int getQuantity(String productId) {
+    try {
+      return _items.firstWhere((item) => item.product.id == productId).quantity;
+    } catch (e) {
+      return 0; // Tidak ketemu artinya 0
+    }
+  }
 
   // Hitung total item di keranjang
   int get totalItems {

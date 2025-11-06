@@ -1,8 +1,6 @@
 // lib/features/inventory/screens/add_product_screen.dart
-import 'dart:typed_data'; // <-- PERBAIKAN: Gunakan 'dart:typed_data'
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/product_model.dart';
 import '../services/inventory_service.dart';
 import '../../auth/widgets/custom_button.dart';
 import '../../auth/widgets/custom_textfield.dart';
@@ -61,8 +59,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         hargaModal: hargaModal,
         hargaJual: hargaJual,
         stok: stok,
-        imageBytes: _imageBytes!, // <-- Kirim bytes
-        imageName: _imageName!, // <-- Kirim nama file
+        imageBytes: _imageBytes!, 
+        imageName: _imageName!,
         storeId: widget.storeId,
       );
 

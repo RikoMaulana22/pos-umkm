@@ -1,5 +1,4 @@
-// lib/features/inventory/widgets/image_picker_widget.dart
-import 'dart:typed_data'; // <-- PERBAIKAN: Gunakan 'dart:typed_data'
+import 'dart:typed_data'; // PERBAIKAN: Gunakan titik dua (:)
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -65,8 +64,8 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
           child: OutlinedButton.icon(
             onPressed: _pickImage,
             icon: const Icon(Icons.upload_file),
-            label: Text(_imageBytes != null || (widget.existingImageUrl != null && widget.existingImageUrl!.isNotEmpty) 
-                ? "Ganti Gambar" 
+            label: Text(_imageBytes != null || (widget.existingImageUrl != null && widget.existingImageUrl!.isNotEmpty)
+                ? "Ganti Gambar"
                 : "Pilih Gambar Produk"),
           ),
         ),

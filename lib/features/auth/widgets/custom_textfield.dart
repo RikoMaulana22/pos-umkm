@@ -1,21 +1,22 @@
-// lib/features/auth/widgets/custom_textfield.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // <-- 1. IMPOR INI
+import 'package:flutter/services.dart';
 
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final bool obscureText;
-  final TextInputType? keyboardType; // <-- 2. TAMBAHKAN INI
-  final List<TextInputFormatter>? inputFormatters; // <-- 3. TAMBAHKAN INI
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final bool readOnly;
 
   const CustomTextField({
     super.key,
     required this.controller,
     required this.hintText,
     this.obscureText = false,
-    this.keyboardType, // <-- 4. TAMBAHKAN INI
-    this.inputFormatters, // <-- 5. TAMBAHKAN INI
+    this.keyboardType,
+    this.inputFormatters,
+    this.readOnly = false,
   });
 
   @override
@@ -25,8 +26,9 @@ class CustomTextField extends StatelessWidget {
       child: TextField(
         controller: controller,
         obscureText: obscureText,
-        keyboardType: keyboardType, // <-- 6. TAMBAHKAN INI
-        inputFormatters: inputFormatters, // <-- 7. TAMBAHKAN INI
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        readOnly: readOnly,
         decoration: InputDecoration(
           enabledBorder: OutlineInputBorder(
             borderSide: BorderSide(color: Colors.grey.shade400),

@@ -38,7 +38,7 @@ class InventoryScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final product = products[index];
               return ListTile(
-                // 2. BUAT AGAR BISA DI-KLIK
+                
                 onTap: () {
                   Navigator.push(
                     context,

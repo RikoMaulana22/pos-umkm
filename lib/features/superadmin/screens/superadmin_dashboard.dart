@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import '../../../shared/theme.dart';
 import '../../settings/models/store_model.dart';
 import '../services/superadmin_service.dart';
+import 'add_store_screen.dart';
+import 'edit_store_screen.dart';
+import 'superadmin_revenue_screen.dart';
 
 class SuperAdminDashboard extends StatefulWidget {
   const SuperAdminDashboard({super.key});
@@ -31,6 +34,18 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SuperAdminRevenueScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.monetization_on),
+            tooltip: "Laporan Penghasilan",
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: "Logout",
             onPressed: signOut,
@@ -56,10 +71,12 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text("Error: ${snapshot.error.toString()}"));
+                  return Center(
+                      child: Text("Error: ${snapshot.error.toString()}"));
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text("Belum ada toko yang terdaftar."));
+                  return const Center(
+                      child: Text("Belum ada toko yang terdaftar."));
                 }
 
                 final stores = snapshot.data!;
@@ -68,7 +85,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   itemBuilder: (context, index) {
                     final store = stores[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
                       elevation: 2,
                       child: ListTile(
                         leading: CircleAvatar(
@@ -76,12 +94,19 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                           foregroundColor: Colors.white,
                           child: Text(store.name[0].toUpperCase()), // Inisial
                         ),
-                        title: Text(store.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(store.name,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text("Owner ID: ${store.ownerId}"),
                         trailing: const Icon(Icons.edit, color: Colors.grey),
                         onTap: () {
-                          // TODO: Buat halaman Edit Toko untuk Super Admin
-                          print("Edit toko ${store.id}");
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  EditStoreScreen(store: store),
+                            ),
+                          );
                         },
                       ),
                     );
@@ -94,8 +119,11 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Buat halaman Tambah Toko (jika Anda setuju registrasi manual)
-          print("Tambah toko baru...");
+          // Buka halaman AddStoreScreen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddStoreScreen()),
+          );
         },
         backgroundColor: superAdminColor,
         foregroundColor: Colors.white,
