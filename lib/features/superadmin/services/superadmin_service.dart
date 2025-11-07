@@ -16,9 +16,7 @@ class SuperAdminService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => StoreModel.fromFirestore(doc))
-          .toList();
+      return snapshot.docs.map((doc) => StoreModel.fromFirestore(doc)).toList();
     });
   }
 
@@ -47,7 +45,7 @@ class SuperAdminService {
         email: adminEmail,
         password: adminPassword,
       );
-      
+
       // Hapus app sementara
       await tempApp.delete();
 
@@ -56,7 +54,8 @@ class SuperAdminService {
         'name': storeName,
         'ownerId': userCredential.user!.uid,
         'createdAt': FieldValue.serverTimestamp(),
-        'subscriptionExpiry': Timestamp.fromDate(expiryDate), // <-- SET LANGGANAN
+        'subscriptionExpiry':
+            Timestamp.fromDate(expiryDate), // <-- SET LANGGANAN
         'subscriptionPrice': subscriptionPrice,
       });
 
@@ -76,34 +75,34 @@ class SuperAdminService {
   }
 
   Future<Map<String, dynamic>> getRevenueData() async {
-  double totalRevenue = 0.0;
-  int activeSubscriptions = 0;
-  int expiredSubscriptions = 0;
+    double totalRevenue = 0.0;
+    int activeSubscriptions = 0;
+    int expiredSubscriptions = 0;
 
-  QuerySnapshot storeSnapshot = await _firestore.collection('stores').get();
+    QuerySnapshot storeSnapshot = await _firestore.collection('stores').get();
 
-  for (var doc in storeSnapshot.docs) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    for (var doc in storeSnapshot.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-    // Tambahkan ke total penghasilan (asumsi harga sewa adalah per pendaftaran)
-    totalRevenue += (data['subscriptionPrice'] ?? 0.0).toDouble();
+      // Tambahkan ke total penghasilan (asumsi harga sewa adalah per pendaftaran)
+      totalRevenue += (data['subscriptionPrice'] ?? 0.0).toDouble();
 
-    // Cek status langganan
-    final Timestamp? expiry = data['subscriptionExpiry'];
-    if (expiry != null && expiry.toDate().isAfter(DateTime.now())) {
-      activeSubscriptions++;
-    } else {
-      expiredSubscriptions++;
+      // Cek status langganan
+      final Timestamp? expiry = data['subscriptionExpiry'];
+      if (expiry != null && expiry.toDate().isAfter(DateTime.now())) {
+        activeSubscriptions++;
+      } else {
+        expiredSubscriptions++;
+      }
     }
-  }
 
-  return {
-    'totalRevenue': totalRevenue,
-    'totalStores': storeSnapshot.size,
-    'activeSubscriptions': activeSubscriptions,
-    'expiredSubscriptions': expiredSubscriptions,
-  };
-}
+    return {
+      'totalRevenue': totalRevenue,
+      'totalStores': storeSnapshot.size,
+      'activeSubscriptions': activeSubscriptions,
+      'expiredSubscriptions': expiredSubscriptions,
+    };
+  }
 
   Future<void> updateStoreSubscription({
     required String storeId,
@@ -137,9 +136,48 @@ class SuperAdminService {
       // PERINGATAN: Ini tidak bisa dilakukan dari aplikasi klien
       // Ini harus dilakukan oleh Cloud Function.
       // Kita akan skip langkah ini untuk sekarang.
-
     } catch (e) {
       throw Exception("Gagal menghapus toko: ${e.toString()}");
     }
+  }
+
+  Future<void> updateStoreDetails({
+    required String storeId,
+    bool? isActive,
+    DateTime? expiryDate,
+    double? price,
+  }) async {
+    Map<String, dynamic> data = {};
+    if (isActive != null) data['isActive'] = isActive;
+    if (expiryDate != null)
+      data['subscriptionExpiry'] = Timestamp.fromDate(expiryDate);
+    if (price != null) data['subscriptionPrice'] = price;
+
+    await _firestore.collection('stores').doc(storeId).update(data);
+  }
+
+  // 5. REPORT: Ambil data ringkasan penghasilan
+  Future<Map<String, dynamic>> getRevenueStats() async {
+    double totalRevenue = 0;
+    int activeStores = 0;
+    int expiredOrSuspended = 0;
+
+    final snapshot = await _firestore.collection('stores').get();
+    for (var doc in snapshot.docs) {
+      final store = StoreModel.fromFirestore(doc);
+      totalRevenue += store.subscriptionPrice;
+      if (store.canOperate) {
+        activeStores++;
+      } else {
+        expiredOrSuspended++;
+      }
+    }
+
+    return {
+      'totalRevenue': totalRevenue,
+      'totalStores': snapshot.size,
+      'active': activeStores,
+      'inactive': expiredOrSuspended,
+    };
   }
 }
