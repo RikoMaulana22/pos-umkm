@@ -11,48 +11,65 @@ class InventoryService {
 
   String? get _userId => _auth.currentUser?.uid;
 
+  /// ✅ Tambah produk baru ke Firestore
   Future<void> addProduct({
     required String name,
     required double hargaModal,
     required double hargaJual,
     required int stok,
-    required Uint8List imageBytes,
-    required String imageName,
+    Uint8List? imageBytes,
+    String? imageName,
     required String storeId,
   }) async {
-    if (_userId == null) throw Exception("User tidak login");
+    if (_userId == null) throw Exception("User belum login");
 
     try {
-      String fileExtension = imageName.split('.').last;
-      String fileName =
-          'products/$storeId/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      String? downloadUrl;
 
-      UploadTask uploadTask = _storage.ref().child(fileName).putData(imageBytes);
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
+      // 🔹 Upload gambar hanya jika user memilih gambar
+      if (imageBytes != null && imageBytes.isNotEmpty && imageName != null) {
+        final String fileExtension =
+            imageName.contains('.') ? imageName.split('.').last.toLowerCase() : 'jpg';
 
-      Product product = Product(
-        name: name,
+        final String fileName =
+            'products/$storeId/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+
+        final metadata = SettableMetadata(contentType: 'image/$fileExtension');
+
+        final uploadTask = _storage.ref(fileName).putData(imageBytes, metadata);
+        final snapshot = await uploadTask.whenComplete(() {});
+        downloadUrl = await snapshot.ref.getDownloadURL();
+      }
+
+      // 🔹 Buat data produk
+      final product = Product(
+        name: name.trim(),
         hargaModal: hargaModal,
         hargaJual: hargaJual,
         stok: stok,
-        imageUrl: downloadUrl,
+        imageUrl: downloadUrl ?? '', // kosong jika tanpa gambar
         createdBy: _userId!,
       );
 
-      Map<String, dynamic> productData = product.toMap();
-      productData['storeId'] = storeId;
+      final productData = product.toMap()
+        ..addAll({
+          'storeId': storeId,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
 
+      // 🔹 Simpan ke Firestore
       await _firestore.collection('products').add(productData);
     } on FirebaseException catch (e) {
-      throw Exception(e.message);
+      throw Exception("Firebase Error: ${e.message}");
     } catch (e) {
-      throw Exception("Gagal menambah produk: ${e.toString()}");
+      throw Exception("Gagal menambah produk: $e");
     }
   }
 
+  /// ✅ Ambil daftar produk berdasarkan storeId
   Stream<List<Product>> getProducts(String storeId) {
     if (_userId == null) return Stream.value([]);
+
     return _firestore
         .collection('products')
         .where('storeId', isEqualTo: storeId)
@@ -65,78 +82,81 @@ class InventoryService {
     });
   }
 
+  /// ✅ Update data produk (dengan/ tanpa ganti gambar)
   Future<void> updateProduct({
     required Product product,
     Uint8List? newImageBytes,
     String? newImageName,
   }) async {
-    if (product.id == null) throw Exception("ID Produk tidak valid");
-    if (_userId == null) throw Exception("User tidak login");
+    if (_userId == null) throw Exception("User belum login");
+    if (product.id == null) throw Exception("ID produk tidak valid");
 
     try {
       String? newImageUrl = product.imageUrl;
 
-      if (newImageBytes != null && newImageName != null) {
+      // 🔹 Upload gambar baru jika ada
+      if (newImageBytes != null && newImageBytes.isNotEmpty && newImageName != null) {
+        // Hapus gambar lama jika ada
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
           try {
             await _storage.refFromURL(product.imageUrl!).delete();
           } catch (e) {
-            print("Gagal hapus gambar lama: $e");
+            print("⚠️ Gagal hapus gambar lama: $e");
           }
         }
 
-        String fileExtension = newImageName.split('.').last;
-        String fileName =
+        final fileExtension = newImageName.split('.').last.toLowerCase();
+        final fileName =
             'products/${product.createdBy}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
 
-        UploadTask uploadTask =
-            _storage.ref().child(fileName).putData(newImageBytes);
-        TaskSnapshot snapshot = await uploadTask;
+        final metadata = SettableMetadata(contentType: 'image/$fileExtension');
+        final uploadTask = _storage.ref(fileName).putData(newImageBytes, metadata);
+        final snapshot = await uploadTask.whenComplete(() {});
         newImageUrl = await snapshot.ref.getDownloadURL();
       }
 
-      Map<String, dynamic> updatedData = {
-        'name': product.name,
+      final updatedData = {
+        'name': product.name.trim(),
         'hargaModal': product.hargaModal,
         'hargaJual': product.hargaJual,
         'stok': product.stok,
-        'imageUrl': newImageUrl,
+        'imageUrl': newImageUrl ?? '',
+        'timestamp': FieldValue.serverTimestamp(),
       };
 
-      await _firestore
-          .collection('products')
-          .doc(product.id)
-          .update(updatedData);
+      await _firestore.collection('products').doc(product.id).update(updatedData);
     } on FirebaseException catch (e) {
-      throw Exception(e.message);
+      throw Exception("Firebase Error: ${e.message}");
     } catch (e) {
-      throw Exception("Gagal update produk: ${e.toString()}");
+      throw Exception("Gagal update produk: $e");
     }
   }
 
+  /// ✅ Hapus produk (beserta gambar)
   Future<void> deleteProduct(String productId) async {
-    if (_userId == null) throw Exception("User tidak login");
+    if (_userId == null) throw Exception("User belum login");
 
     try {
-      DocumentSnapshot doc =
-          await _firestore.collection('products').doc(productId).get();
-
+      final doc = await _firestore.collection('products').doc(productId).get();
       if (!doc.exists) throw Exception("Produk tidak ditemukan");
 
-      String? imageUrl = (doc.data() as Map<String, dynamic>)['imageUrl'];
+      final data = doc.data() as Map<String, dynamic>;
+      final imageUrl = data['imageUrl'] as String?;
+
+      // 🔹 Hapus gambar jika ada
       if (imageUrl != null && imageUrl.isNotEmpty) {
         try {
           await _storage.refFromURL(imageUrl).delete();
         } catch (e) {
-          print("Gagal hapus gambar dari storage: $e");
+          print("⚠️ Gagal hapus gambar dari Storage: $e");
         }
       }
 
       await _firestore.collection('products').doc(productId).delete();
     } on FirebaseException catch (e) {
-      throw Exception(e.message);
+      throw Exception("Firebase Error: ${e.message}");
     } catch (e) {
-      throw Exception("Gagal menghapus produk: ${e.toString()}");
+      throw Exception("Gagal menghapus produk: $e");
     }
   }
 }

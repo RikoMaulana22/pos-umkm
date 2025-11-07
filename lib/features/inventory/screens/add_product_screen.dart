@@ -1,4 +1,5 @@
 // lib/features/inventory/screens/add_product_screen.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/inventory_service.dart';
@@ -17,73 +18,76 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final InventoryService _inventoryService = InventoryService();
-  
+
   final TextEditingController nameController = TextEditingController();
   final TextEditingController modalController = TextEditingController();
   final TextEditingController jualController = TextEditingController();
   final TextEditingController stokController = TextEditingController();
-  
-  Uint8List? _imageBytes; 
+
+  Uint8List? _imageBytes;
   String? _imageName;
   bool _isLoading = false;
 
-  void _saveProduct() async {
+  Future<void> _saveProduct() async {
     if (nameController.text.isEmpty ||
         modalController.text.isEmpty ||
         jualController.text.isEmpty ||
-        stokController.text.isEmpty ||
-        _imageBytes == null) {
+        stokController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Semua field dan gambar harus diisi"),
-          backgroundColor: Colors.red));
+        content: Text("Nama, harga, dan stok harus diisi"),
+        backgroundColor: Colors.red,
+      ));
       return;
     }
 
-    setState(() { _isLoading = true; });
-
-    double? hargaModal;
-    double? hargaJual;
-    int? stok;
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      hargaModal = double.tryParse(modalController.text.replaceAll(',', '.'));
-      hargaJual = double.tryParse(jualController.text.replaceAll(',', '.'));
-      stok = int.tryParse(stokController.text);
+      // Parsing angka dari input
+      final hargaModal = double.tryParse(modalController.text.replaceAll(',', '.'));
+      final hargaJual = double.tryParse(jualController.text.replaceAll(',', '.'));
+      final stok = int.tryParse(stokController.text);
 
       if (hargaModal == null || hargaJual == null || stok == null) {
         throw const FormatException("Format angka tidak valid. Gunakan angka saja.");
       }
-      
+
+      // Kirim data ke Firestore (gambar opsional)
       await _inventoryService.addProduct(
-        name: nameController.text,
+        name: nameController.text.trim(),
         hargaModal: hargaModal,
         hargaJual: hargaJual,
         stok: stok,
-        imageBytes: _imageBytes!, 
-        imageName: _imageName!,
+        imageBytes: _imageBytes,
+        imageName: _imageName,
         storeId: widget.storeId,
       );
 
-      if (!mounted) return; 
-
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Produk berhasil ditambahkan!"),
-          backgroundColor: Colors.green));
+        content: Text("Produk berhasil ditambahkan!"),
+        backgroundColor: Colors.green,
+      ));
       Navigator.pop(context);
-
     } on FormatException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Error: ${e.message}"),
-          backgroundColor: Colors.red));
+        content: Text("Error: ${e.message}"),
+        backgroundColor: Colors.red,
+      ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Gagal menambah produk: ${e.toString()}"),
-          backgroundColor: Colors.red));
+        content: Text("Gagal menambah produk: ${e.toString()}"),
+        backgroundColor: Colors.red,
+      ));
     } finally {
       if (mounted) {
-        setState(() { _isLoading = false; });
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -110,7 +114,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 CustomTextField(
                   controller: modalController,
                   hintText: "Harga Modal (Beli)",
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d*')),
                   ],
@@ -119,7 +124,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 CustomTextField(
                   controller: jualController,
                   hintText: "Harga Jual",
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d*')),
                   ],
@@ -134,26 +140,28 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                
                 ImagePickerWidget(
                   onImagePicked: (imageBytes, fileName) {
-                    _imageBytes = imageBytes;
-                    _imageName = fileName;
+                    setState(() {
+                      _imageBytes = imageBytes;
+                      _imageName = fileName;
+                    });
                   },
                 ),
                 const SizedBox(height: 32),
                 CustomButton(
                   onTap: _isLoading ? null : _saveProduct,
-                  text: "Simpan Produk",
+                  text: _isLoading ? "Menyimpan..." : "Simpan Produk",
                 ),
               ],
             ),
           ),
-          
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
-              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
             ),
         ],
       ),

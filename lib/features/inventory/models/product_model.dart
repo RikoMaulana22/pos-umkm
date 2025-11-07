@@ -1,39 +1,27 @@
-// lib/features/inventory/models/product_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Product {
-  final String? id;
+  final String id;
   final String name;
-  final double hargaModal; // Harga Beli
-  final double hargaJual;  // Harga Jual
+  final double hargaModal;
+  final double hargaJual;
   final int stok;
   final String? imageUrl;
-  final String createdBy; // Untuk melacak siapa yang menambah produk
+  final String createdBy;
+  final DateTime? timestamp; // ✅ Menyimpan waktu penambahan produk
 
   Product({
-    this.id,
+    this.id = '',
     required this.name,
     required this.hargaModal,
     required this.hargaJual,
     required this.stok,
     this.imageUrl,
     required this.createdBy,
+    this.timestamp,
   });
 
-  // Mengubah Map (dari Firestore) menjadi objek Product
-  factory Product.fromMap(Map<String, dynamic> map, String id) {
-    return Product(
-      id: id,
-      name: map['name'] ?? '',
-      hargaModal: (map['hargaModal'] ?? 0).toDouble(),
-      hargaJual: (map['hargaJual'] ?? 0).toDouble(),
-      stok: map['stok'] ?? 0,
-      imageUrl: map['imageUrl'],
-      createdBy: map['createdBy'] ?? '',
-    );
-  }
-
-  // Mengubah objek Product menjadi Map (untuk dikirim ke Firestore)
+  /// ✅ Convert Product object → Map (untuk disimpan ke Firestore)
   Map<String, dynamic> toMap() {
     return {
       'name': name,
@@ -42,7 +30,24 @@ class Product {
       'stok': stok,
       'imageUrl': imageUrl,
       'createdBy': createdBy,
-      'timestamp': FieldValue.serverTimestamp(), // Menambah stempel waktu
+      // Gunakan serverTimestamp agar waktu sinkron dengan server Firestore
+      'timestamp': FieldValue.serverTimestamp(),
     };
+  }
+
+  /// ✅ Convert Map → Product object (saat dibaca dari Firestore)
+  factory Product.fromMap(Map<String, dynamic> data, String id) {
+    return Product(
+      id: id,
+      name: data['name'] ?? '',
+      hargaModal: (data['hargaModal'] ?? 0).toDouble(),
+      hargaJual: (data['hargaJual'] ?? 0).toDouble(),
+      stok: (data['stok'] ?? 0).toInt(),
+      imageUrl: data['imageUrl'] as String?,
+      createdBy: data['createdBy'] ?? '',
+      timestamp: data['timestamp'] is Timestamp
+          ? (data['timestamp'] as Timestamp).toDate()
+          : null,
+    );
   }
 }
