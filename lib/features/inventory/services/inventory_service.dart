@@ -20,6 +20,8 @@ class InventoryService {
     Uint8List? imageBytes,
     String? imageName,
     required String storeId,
+    required String categoryId,
+    required String categoryName,
   }) async {
     if (_userId == null) throw Exception("User belum login");
 
@@ -49,12 +51,17 @@ class InventoryService {
         stok: stok,
         imageUrl: downloadUrl ?? '', // kosong jika tanpa gambar
         createdBy: _userId!,
+        // ===========================================
+        // INI BAGIAN YANG DITAMBAHKAN
+        // ===========================================
+        categoryId: categoryId,
+        categoryName: categoryName,
       );
 
       final productData = product.toMap()
         ..addAll({
           'storeId': storeId,
-          'timestamp': FieldValue.serverTimestamp(),
+          // 'timestamp' sudah ada di dalam .toMap()
         });
 
       // 🔹 Simpan ke Firestore
@@ -67,17 +74,29 @@ class InventoryService {
   }
 
   /// ✅ Ambil daftar produk berdasarkan storeId
-  Stream<List<Product>> getProducts(String storeId) {
+  Stream<List<Product>> getProducts(String storeId, {String? categoryId}) {
     if (_userId == null) return Stream.value([]);
 
-    return _firestore
+    // Mulai query dasar
+    Query query = _firestore
         .collection('products')
-        .where('storeId', isEqualTo: storeId)
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map((snapshot) {
+        .where('storeId', isEqualTo: storeId);
+
+    // 1. TAMBAHKAN FILTER KATEGORI JIKA ADA
+    if (categoryId != null && categoryId.isNotEmpty) {
+      query = query.where('categoryId', isEqualTo: categoryId);
+    }
+
+    // 2. Tambahkan pengurutan
+    // Kita tidak bisa orderBy 'timestamp' jika memfilter 'categoryId'
+    // kecuali kita buat indeks komposit untuk SETIAP KATEGORI.
+    // Solusi mudah: urutkan berdasarkan nama saja.
+    query = query.orderBy('name');
+
+    // Kembalikan stream
+    return query.snapshots().map((snapshot) {
       return snapshot.docs
-          .map((doc) => Product.fromMap(doc.data(), doc.id))
+          .map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>, doc.id))
           .toList();
     });
   }
@@ -122,6 +141,11 @@ class InventoryService {
         'stok': product.stok,
         'imageUrl': newImageUrl ?? '',
         'timestamp': FieldValue.serverTimestamp(),
+        // ===========================================
+        // INI BAGIAN YANG DITAMBAHKAN
+        // ===========================================
+        'categoryId': product.categoryId,
+        'categoryName': product.categoryName,
       };
 
       await _firestore.collection('products').doc(product.id).update(updatedData);

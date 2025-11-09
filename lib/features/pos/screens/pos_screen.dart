@@ -7,18 +7,34 @@ import '../../inventory/services/inventory_service.dart';
 import '../../inventory/models/product_model.dart';
 import '../../../shared/theme.dart';
 import '../providers/cart_provider.dart';
-import '../widgets/cart_details_sheet.dart'; // <-- Pastikan impor ini ada
+import '../widgets/cart_details_sheet.dart';
 import '../widgets/product_card.dart';
 
-class PosScreen extends StatelessWidget {
+// 1. IMPOR MODEL DAN SERVICE KATEGORI
+import '../../inventory/models/category_model.dart';
+import '../../inventory/services/category_service.dart';
+
+// 2. UBAH MENJADI STATEFULWIDGET
+class PosScreen extends StatefulWidget {
   final String storeId;
   const PosScreen({super.key, required this.storeId});
 
   @override
+  State<PosScreen> createState() => _PosScreenState();
+}
+
+class _PosScreenState extends State<PosScreen> {
+  // 3. PINDAHKAN SERVICE KE DALAM STATE
+  final InventoryService _inventoryService = InventoryService();
+  final CategoryService _categoryService = CategoryService();
+  final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
+
+  // 4. BUAT STATE UNTUK MENYIMPAN KATEGORI PILIHAN
+  String? _selectedCategoryId; // null artinya "Semua"
+
+  @override
   Widget build(BuildContext context) {
-    final InventoryService _inventoryService = InventoryService();
     final bool isCashier = FirebaseAuth.instance.currentUser != null;
-    final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -36,17 +52,38 @@ class PosScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
+          // 5. TAMBAHKAN WIDGET UNTUK FILTER KATEGORI
+          _buildCategoryFilter(),
+
+          // 6. UBAH STREAMBUILDER PRODUK
           Expanded(
             child: StreamBuilder<List<Product>>(
-              stream: _inventoryService.getProducts(storeId),
+              // Gunakan _selectedCategoryId untuk memfilter stream
+              stream: _inventoryService.getProducts(widget.storeId, categoryId: _selectedCategoryId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
+                  // Tampilkan error indeks jika muncul lagi
+                  if (snapshot.error.toString().contains('failed-precondition')) {
+                     return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          "Error: Query memerlukan indeks.\nBuka Firebase Console -> Firestore -> Indexes, lalu buat indeks komposit untuk koleksi 'products' dengan field 'storeId' (Asc) dan 'name' (Asc).",
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
                   return Center(child: Text("Error: ${snapshot.error}"));
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  // Tampilkan pesan yang lebih spesifik jika filter aktif
+                  if (_selectedCategoryId != null) {
+                    return const Center(child: Text("Tidak ada produk di kategori ini."));
+                  }
                   return const Center(child: Text("Belum ada produk."));
                 }
 
@@ -69,6 +106,7 @@ class PosScreen extends StatelessWidget {
             ),
           ),
           
+          // Consumer untuk Cart (Tidak berubah)
           Consumer<CartProvider>(
             builder: (context, cart, child) {
               return AnimatedContainer(
@@ -80,7 +118,7 @@ class PosScreen extends StatelessWidget {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (ctx) => CartDetailsSheet(storeId: storeId), // <-- Kirim storeId
+                      builder: (ctx) => CartDetailsSheet(storeId: widget.storeId),
                     );
                   },
                   child: Container(
@@ -135,6 +173,76 @@ class PosScreen extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  // 7. WIDGET BARU UNTUK MENAMPILKAN PILIHAN KATEGORI
+  Widget _buildCategoryFilter() {
+    return Container(
+      height: 50,
+      color: Colors.white,
+      child: StreamBuilder<List<Category>>(
+        stream: _categoryService.getCategories(widget.storeId),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: Text("Memuat kategori..."));
+          }
+          
+          var categories = snapshot.data!;
+
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: categories.length + 1, // +1 untuk tombol "Semua"
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                // Tombol "Semua"
+                return _buildCategoryChip(
+                  label: "Semua",
+                  isSelected: _selectedCategoryId == null,
+                  onTap: () {
+                    setState(() {
+                      _selectedCategoryId = null;
+                    });
+                  },
+                );
+              }
+
+              final category = categories[index - 1];
+              return _buildCategoryChip(
+                label: category.name,
+                isSelected: _selectedCategoryId == category.id,
+                onTap: () {
+                  setState(() {
+                    _selectedCategoryId = category.id;
+                  });
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  // 8. WIDGET KECIL UNTUK TOMBOL KATEGORI
+  Widget _buildCategoryChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: ActionChip(
+        label: Text(label),
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.white : primaryColor,
+          fontWeight: FontWeight.bold,
+        ),
+        backgroundColor: isSelected ? primaryColor : Colors.white,
+        side: BorderSide(color: isSelected ? primaryColor : Colors.grey[300]!),
+        onPressed: onTap,
       ),
     );
   }

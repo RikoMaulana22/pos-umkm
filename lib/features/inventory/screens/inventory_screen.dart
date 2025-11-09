@@ -5,6 +5,7 @@ import '../models/product_model.dart';
 import 'add_product_screen.dart';
 import 'edit_product_screen.dart';
 import '../../../shared/theme.dart';
+import 'category_screen.dart';
 
 class InventoryScreen extends StatelessWidget {
   final String storeId;
@@ -24,6 +25,23 @@ class InventoryScreen extends StatelessWidget {
         title: const Text('Inventaris (Produk)'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        // ===========================================
+        // KODE YANG DITAMBAHKAN (BLOK actions)
+        // ===========================================
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.category),
+            tooltip: "Manajemen Kategori",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CategoryScreen(storeId: storeId),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<List<Product>>(
         stream: inventoryService.getProducts(storeId),
@@ -92,7 +110,11 @@ class InventoryScreen extends StatelessWidget {
                     product.name,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
+                  // ===========================================
+                  // KODE YANG DIPERBARUI (SUBTITLE)
+                  // ===========================================
                   subtitle: Text(
+                    "Kategori: ${product.categoryName ?? 'N/A'}\n"
                     "Stok: ${product.stok} | Modal: ${formatCurrency.format(product.hargaModal)}",
                   ),
                   trailing: Text(

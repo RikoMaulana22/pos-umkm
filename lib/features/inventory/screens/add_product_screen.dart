@@ -7,6 +7,8 @@ import '../../auth/widgets/custom_button.dart';
 import '../../auth/widgets/custom_textfield.dart';
 import '../widgets/image_picker_widget.dart';
 import '../../../shared/theme.dart';
+import '../models/category_model.dart';
+import '../services/category_service.dart';
 
 class AddProductScreen extends StatefulWidget {
   final String storeId;
@@ -18,7 +20,7 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final InventoryService _inventoryService = InventoryService();
-
+  final CategoryService _categoryService = CategoryService();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController modalController = TextEditingController();
   final TextEditingController jualController = TextEditingController();
@@ -28,7 +30,28 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String? _imageName;
   bool _isLoading = false;
 
+  // ===========================================
+  // PERBAIKAN 1: Ubah tipe state
+  // ===========================================
+  String? _selectedCategoryId; // Simpan ID-nya saja, bukan objek
+
+  // ===========================================
+  // PERBAIKAN 2: Buat variabel untuk stream & cache
+  // ===========================================
+  late Stream<List<Category>> _categoryStream;
+  List<Category> _cachedCategories = []; // Cache untuk mencari nama
+
+  @override
+  void initState() {
+    super.initState();
+    // ===========================================
+    // PERBAIKAN 3: Panggil stream hanya satu kali di initState
+    // ===========================================
+    _categoryStream = _categoryService.getCategories(widget.storeId);
+  }
+
   Future<void> _saveProduct() async {
+    // Validasi dasar (sudah benar)
     if (nameController.text.isEmpty ||
         modalController.text.isEmpty ||
         jualController.text.isEmpty ||
@@ -40,21 +63,42 @@ class _AddProductScreenState extends State<AddProductScreen> {
       return;
     }
 
+    // ===========================================
+    // PERBAIKAN 4: Validasi _selectedCategoryId (String)
+    // ===========================================
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Kategori harus dipilih"),
+          backgroundColor: Colors.red));
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Parsing angka dari input
-      final hargaModal = double.tryParse(modalController.text.replaceAll(',', '.'));
-      final hargaJual = double.tryParse(jualController.text.replaceAll(',', '.'));
+      // Parsing angka (sudah benar)
+      final hargaModal =
+          double.tryParse(modalController.text.replaceAll(',', '.'));
+      final hargaJual =
+          double.tryParse(jualController.text.replaceAll(',', '.'));
       final stok = int.tryParse(stokController.text);
 
       if (hargaModal == null || hargaJual == null || stok == null) {
-        throw const FormatException("Format angka tidak valid. Gunakan angka saja.");
+        throw const FormatException(
+            "Format angka tidak valid. Gunakan angka saja.");
       }
 
-      // Kirim data ke Firestore (gambar opsional)
+      // ===========================================
+      // PERBAIKAN 5: Cari objek kategori dari cache
+      // ===========================================
+      final selectedCategoryObject = _cachedCategories.firstWhere(
+        (c) => c.id == _selectedCategoryId,
+        orElse: () => throw Exception("Kategori tidak ditemukan"),
+      );
+
+      // Panggil service dengan data kategori (sudah benar)
       await _inventoryService.addProduct(
         name: nameController.text.trim(),
         hargaModal: hargaModal,
@@ -63,6 +107,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         imageBytes: _imageBytes,
         imageName: _imageName,
         storeId: widget.storeId,
+        categoryId: selectedCategoryObject.id!, // Kirim ID
+        categoryName: selectedCategoryObject.name, // Kirim Nama
       );
 
       if (!mounted) return;
@@ -139,6 +185,78 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     FilteringTextInputFormatter.digitsOnly,
                   ],
                 ),
+
+                const SizedBox(height: 16),
+
+                // ===========================================
+                // PERBAIKAN 6: Gunakan _categoryStream
+                // ===========================================
+                StreamBuilder<List<Category>>(
+                  stream: _categoryStream, // Gunakan stream dari initState
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.data == null || snapshot.data!.isEmpty) {
+                      _cachedCategories = []; // Kosongkan cache
+                      return const Center(
+                        child: Text(
+                          "Belum ada kategori. Silakan tambah di menu Inventaris.",
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+
+                    // Simpan data ke cache
+                    _cachedCategories = snapshot.data!;
+
+                    // Validasi
+                    if (_selectedCategoryId != null &&
+                        !_cachedCategories
+                            .any((c) => c.id == _selectedCategoryId)) {
+                      _selectedCategoryId = null;
+                    }
+
+                    // ===========================================
+                    // PERBAIKAN 7: Ubah Dropdown ke <String>
+                    // ===========================================
+                    return DropdownButtonFormField<String>(
+                      value: _selectedCategoryId, // value adalah String?
+                      hint: const Text("Pilih Kategori"),
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.primary),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        fillColor: Colors.grey.shade100,
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12.0, vertical: 16.0),
+                      ),
+                      items: _cachedCategories.map((Category category) {
+                        return DropdownMenuItem<String>(
+                          value: category.id, // value adalah String ID
+                          child: Text(category.name),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        // newValue adalah String?
+                        setState(() {
+                          _selectedCategoryId = newValue;
+                        });
+                      },
+                      validator: (value) =>
+                          value == null ? 'Kategori harus diisi' : null,
+                    );
+                  },
+                ),
+
                 const SizedBox(height: 24),
                 ImagePickerWidget(
                   onImagePicked: (imageBytes, fileName) {

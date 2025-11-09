@@ -9,17 +9,20 @@ class Product {
   final String? imageUrl;
   final String createdBy;
   final DateTime? timestamp; // ✅ Menyimpan waktu penambahan produk
+  final String? categoryId;
+  final String? categoryName;
 
-  Product({
-    this.id = '',
-    required this.name,
-    required this.hargaModal,
-    required this.hargaJual,
-    required this.stok,
-    this.imageUrl,
-    required this.createdBy,
-    this.timestamp,
-  });
+  Product(
+      {this.id = '',
+      required this.name,
+      required this.hargaModal,
+      required this.hargaJual,
+      required this.stok,
+      this.imageUrl,
+      required this.createdBy,
+      this.timestamp,
+      this.categoryId,
+      this.categoryName});
 
   /// ✅ Convert Product object → Map (untuk disimpan ke Firestore)
   Map<String, dynamic> toMap() {
@@ -32,6 +35,8 @@ class Product {
       'createdBy': createdBy,
       // Gunakan serverTimestamp agar waktu sinkron dengan server Firestore
       'timestamp': FieldValue.serverTimestamp(),
+      'categoryId': categoryId,
+      'categoryName': categoryName,
     };
   }
 
@@ -48,6 +53,8 @@ class Product {
       timestamp: data['timestamp'] is Timestamp
           ? (data['timestamp'] as Timestamp).toDate()
           : null,
+      categoryId: data['categoryId'],
+      categoryName: data['categoryName'],
     );
   }
 }
