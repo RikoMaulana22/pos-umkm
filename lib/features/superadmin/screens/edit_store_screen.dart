@@ -1,4 +1,5 @@
 // lib/features/superadmin/screens/edit_store_screen.dart
+import 'package:erp_umkm/shared/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/superadmin_service.dart';
@@ -23,13 +24,13 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   
   DateTime? _selectedExpiryDate;
   bool _isLoading = false;
+  bool _isActive = true; // 1. TAMBAH STATE BARU
 
   @override
   void initState() {
     super.initState();
-    // Ambil data toko yang ada untuk mengisi form
     storeNameController.text = widget.store.name;
-    // Kita perlu ambil data lengkap (termasuk harga dan tanggal)
+    
     FirebaseFirestore.instance
         .collection('stores')
         .doc(widget.store.id)
@@ -40,11 +41,14 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         final double price = (data['subscriptionPrice'] ?? 0.0).toDouble();
         final Timestamp? expiry = data['subscriptionExpiry'];
         
-        priceController.text = price.toStringAsFixed(0);
-        if (expiry != null) {
-          _selectedExpiryDate = expiry.toDate();
-          expiryDateController.text = DateFormat('dd/MM/yyyy').format(_selectedExpiryDate!);
-        }
+        setState(() {
+          priceController.text = price.toStringAsFixed(0);
+          _isActive = data['isActive'] ?? true; // Ambil status
+          if (expiry != null) {
+            _selectedExpiryDate = expiry.toDate();
+            expiryDateController.text = DateFormat('dd/MM/yyyy').format(_selectedExpiryDate!);
+          }
+        });
       }
     });
   }
@@ -65,26 +69,35 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   }
 
   void _updateStore() async {
-    if (priceController.text.isEmpty || _selectedExpiryDate == null) {
+    if (storeNameController.text.isEmpty ||
+        priceController.text.isEmpty ||
+        _selectedExpiryDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Harga dan Tanggal harus diisi"), backgroundColor: Colors.red));
+          content: Text("Nama, Harga, dan Tanggal harus diisi"),
+          backgroundColor: Colors.red));
       return;
     }
     setState(() { _isLoading = true; });
 
     try {
+      // 3. KIRIM SEMUA DATA (TERMASUK isActive)
       await _service.updateStoreSubscription(
         storeId: widget.store.id,
+        newName: storeNameController.text, // <-- PERBAIKAN: Kirim nama baru
         newExpiryDate: _selectedExpiryDate!,
         newPrice: double.parse(priceController.text),
+        isActive: _isActive, // <-- PERBAIKAN: Kirim status
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Langganan toko berhasil diperbarui!"),
+          content: Text("Data toko berhasil diperbarui!"),
           backgroundColor: Colors.green));
       Navigator.pop(context);
     } catch (e) {
-      // ... (Error handling)
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Gagal: ${e.toString()}"),
+          backgroundColor: Colors.red));
     } finally {
       if (mounted) { setState(() { _isLoading = false; }); }
     }
@@ -114,7 +127,10 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
           backgroundColor: Colors.green));
       Navigator.pop(context);
     } catch (e) {
-      // ... (Error handling)
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Gagal menghapus: ${e.toString()}"),
+          backgroundColor: Colors.red));
     } finally {
       if (mounted) { setState(() { _isLoading = false; }); }
     }
@@ -142,9 +158,16 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Pengaturan Langganan", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text("Detail Toko",
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 CustomTextField(controller: storeNameController, hintText: "Nama Toko", ),
+                const SizedBox(height: 24),
+                
+                const Text("Pengaturan Langganan",
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 CustomTextField(controller: priceController, hintText: "Harga Sewa (Rp)", keyboardType: TextInputType.number),
                 const SizedBox(height: 16),
@@ -155,14 +178,36 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                     hintText: "Pilih Tanggal Kedaluwarsa Baru",
                     suffixIcon: Icon(Icons.calendar_today),
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                   ),
                   onTap: () => _selectDate(context),
                 ),
+                const SizedBox(height: 16),
+                
+                // 4. TAMBAHKAN SWITCH UNTUK STATUS AKTIF
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SwitchListTile(
+                    title: const Text("Toko Aktif"),
+                    subtitle: Text(_isActive ? "Toko dapat beroperasi" : "Toko dinonaktifkan (suspended)"),
+                    value: _isActive,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _isActive = value;
+                      });
+                    },
+                    activeColor: primaryColor,
+                  ),
+                ),
+                
                 const SizedBox(height: 32),
                 CustomButton(
                   onTap: _isLoading ? null : _updateStore,
-                  text: "Update Langganan",
+                  text: "Update Data Toko",
                 ),
               ],
             ),

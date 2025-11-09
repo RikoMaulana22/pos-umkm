@@ -8,6 +8,8 @@ import '../home/home_screen.dart';
 import '../pos/screens/pos_screen.dart';
 import '../superadmin/screens/superadmin_dashboard.dart';
 import 'subscription_expired_screen.dart';
+// 1. IMPOR STORE MODEL
+import '../settings/models/store_model.dart'; 
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -37,10 +39,9 @@ class AuthGate extends StatelessWidget {
               }
 
               // 4. Gagal ambil data role
-              // PERBAIKAN DI SINI:
+
               if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                // HAPUS BARIS 'FirebaseAuth.instance.signOut();'
-                // Cukup kembalikan ke login, jangan paksa logout
+                
                 return const LoginOrRegister();
               }
 
@@ -64,11 +65,12 @@ class AuthGate extends StatelessWidget {
                   }
 
                   // 7. LOGIKA LANGGANAN (Subscription)
-                  return StreamBuilder<DocumentSnapshot>(
+                  return StreamBuilder<StoreModel>( // Ubah ke StoreModel
                     stream: FirebaseFirestore.instance
                         .collection('stores')
                         .doc(storeId)
-                        .snapshots(),
+                        .snapshots()
+                        .map((doc) => StoreModel.fromFirestore(doc)), // Konversi ke model
                     builder: (context, storeSnapshot) {
                       if (storeSnapshot.connectionState ==
                           ConnectionState.waiting) {
@@ -76,27 +78,24 @@ class AuthGate extends StatelessWidget {
                             body: Center(child: CircularProgressIndicator()));
                       }
 
-                      if (!storeSnapshot.hasData ||
-                          !storeSnapshot.data!.exists) {
+                      if (!storeSnapshot.hasData) {
                         return const Scaffold(
                             body: Center(
                                 child: Text("Error: Toko tidak ditemukan.")));
                       }
 
-                      final storeData =
-                          storeSnapshot.data!.data() as Map<String, dynamic>;
-                      final Timestamp? expiryDate =
-                          storeData['subscriptionExpiry'];
-
-                      if (expiryDate != null &&
-                          expiryDate.toDate().isAfter(DateTime.now())) {
+                      // 3. GUNAKAN MODEL.CANOPERATE
+                      final store = storeSnapshot.data!;
+                      
+                      if (store.canOperate) { // <-- LOGIKA BARU DI SINI
+                        // Jika toko aktif dan langganan valid
                         if (role == 'admin') {
                           return HomeScreen(storeId: storeId);
                         } else {
                           return PosScreen(storeId: storeId);
                         }
                       } else {
-                        // Langganan Habis
+                        // Langganan Habis ATAU Toko di-suspend
                         return const SubscriptionExpiredScreen();
                       }
                     },

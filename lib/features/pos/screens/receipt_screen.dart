@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/theme.dart';
+// 1. IMPOR MODEL TRANSAKSI
+import '../../reports/models/transaction_model.dart'; 
 
 class ReceiptScreen extends StatelessWidget {
   final String transactionId;
@@ -18,23 +20,25 @@ class ReceiptScreen extends StatelessWidget {
         title: const Text("Struk Pembayaran"),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
-        automaticallyImplyLeading: false, // Sembunyikan tombol kembali
+        automaticallyImplyLeading: false, 
       ),
-      body: FutureBuilder<DocumentSnapshot>(
-        // Ambil data transaksi yang baru saja dibuat
-        future: FirebaseFirestore.instance.collection('transactions').doc(transactionId).get(),
+      // 2. UBAH FUTUREBUILDER UNTUK MENGGUNAKAN MODEL
+      body: FutureBuilder<TransactionModel>(
+        future: FirebaseFirestore.instance
+            .collection('transactions')
+            .doc(transactionId)
+            .get()
+            .then((doc) => TransactionModel.fromFirestore(doc)), // Konversi ke model
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || !snapshot.data!.exists) {
+          if (!snapshot.hasData) {
             return const Center(child: Text("Gagal memuat transaksi."));
           }
 
-          // Data transaksi berhasil diambil
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          final List items = data['items'] as List;
-          final Timestamp timestamp = data['timestamp'] as Timestamp;
+          final tx = snapshot.data!; // 3. Gunakan objek model
+          final bool isCashPayment = tx.paymentMethod == "Tunai";
 
           return Padding(
             padding: const EdgeInsets.all(24.0),
@@ -48,20 +52,21 @@ class ReceiptScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  formatDateTime.format(timestamp.toDate()),
+                  formatDateTime.format(tx.timestamp.toDate()),
                   style: const TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 24),
 
-                // Detail Item (Sesuai Figma)
+                // Detail Item
                 Expanded(
                   child: ListView(
                     children: [
-                      ...items.map((item) {
+                      // 4. Gunakan list 'items' dari model
+                      ...tx.items.map((item) {
                         return ListTile(
-                          title: Text(item['productName']),
-                          subtitle: Text("${item['quantity']} x ${formatCurrency.format(item['price'])}"),
-                          trailing: Text(formatCurrency.format(item['price'] * item['quantity'])),
+                          title: Text(item.productName),
+                          subtitle: Text("${item.quantity} x ${formatCurrency.format(item.price)}"),
+                          trailing: Text(formatCurrency.format(item.price * item.quantity)),
                         );
                       }).toList(),
                       const Divider(thickness: 1),
@@ -69,14 +74,25 @@ class ReceiptScreen extends StatelessWidget {
                       ListTile(
                         title: const Text("TOTAL", style: TextStyle(fontWeight: FontWeight.bold)),
                         trailing: Text(
-                          formatCurrency.format(data['totalPrice']),
+                          formatCurrency.format(tx.totalPrice),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                         ),
                       ),
                       ListTile(
-                        title: Text("Metode Bayar"),
-                        trailing: Text(data['paymentMethod']),
+                        title: const Text("Metode Bayar"),
+                        trailing: Text(tx.paymentMethod),
                       ),
+                      // 5. Tampilkan Tunai & Kembalian jika metodenya Tunai
+                      if (isCashPayment && tx.cashReceived != null)
+                        ListTile(
+                          title: const Text("Uang Tunai"),
+                          trailing: Text(formatCurrency.format(tx.cashReceived)),
+                        ),
+                      if (isCashPayment && tx.change != null)
+                        ListTile(
+                          title: const Text("Kembalian"),
+                          trailing: Text(formatCurrency.format(tx.change)),
+                        ),
                     ],
                   ),
                 ),

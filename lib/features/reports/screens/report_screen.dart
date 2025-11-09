@@ -19,7 +19,8 @@ class _ReportScreenState extends State<ReportScreen> {
   final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
   final formatDateTime = DateFormat('dd/MM/yyyy HH:mm');
   
-  late Future<Map<String, double>> _salesDataFuture;
+  // PERBAIKAN: Ubah jadi Map<String, Map<String, double>>
+  late Future<Map<String, Map<String, double>>> _salesDataFuture;
   int _selectedDays = 7;
 
   @override
@@ -30,7 +31,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
   void _refreshData() {
     setState(() {
-      _salesDataFuture = _reportService.getDailySalesData(widget.storeId, _selectedDays);
+      // Panggil service baru yang mengambil sales dan profit
+      _salesDataFuture = _reportService.getDailySalesAndProfitData(widget.storeId, _selectedDays);
     });
   }
 
@@ -38,7 +40,7 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Laporan Transaksi'),
+        title: const Text('Laporan'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
@@ -62,7 +64,7 @@ class _ReportScreenState extends State<ReportScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData || snapshot.data == null) {
              return const Center(child: Text("Belum ada data transaksi."));
           }
 
@@ -70,9 +72,12 @@ class _ReportScreenState extends State<ReportScreen> {
           
           // Hitung Ringkasan
           double totalOmzet = 0;
+          double totalProfit = 0; // <-- 1. TAMBAH INI
           int totalItemsSold = 0;
+          
           for (var tx in transactions) {
             totalOmzet += tx.totalPrice;
+            totalProfit += tx.totalProfit; // <-- 2. TAMBAH INI
             totalItemsSold += tx.totalItems;
           }
 
@@ -83,13 +88,24 @@ class _ReportScreenState extends State<ReportScreen> {
                 // 1. KARTU RINGKASAN (WOW FACTOR)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Row(
+                  child: Column(
                     children: [
-                      _buildSummaryCard("Total Omzet", formatCurrency.format(totalOmzet), Icons.monetization_on, Colors.green),
-                      const SizedBox(width: 12),
-                      _buildSummaryCard("Transaksi", transactions.length.toString(), Icons.receipt_long, Colors.blue),
-                      const SizedBox(width: 12),
-                      _buildSummaryCard("Item Terjual", totalItemsSold.toString(), Icons.shopping_bag, Colors.orange),
+                      Row(
+                        children: [
+                          _buildSummaryCard("Total Omzet", formatCurrency.format(totalOmzet), Icons.monetization_on, Colors.blue),
+                          const SizedBox(width: 12),
+                          // 3. TAMPILKAN KARTU LABA
+                          _buildSummaryCard("Total Laba", formatCurrency.format(totalProfit), Icons.trending_up, Colors.green),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                       Row(
+                        children: [
+                           _buildSummaryCard("Transaksi", transactions.length.toString(), Icons.receipt_long, Colors.orange),
+                          const SizedBox(width: 12),
+                          _buildSummaryCard("Item Terjual", totalItemsSold.toString(), Icons.shopping_bag, Colors.purple),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -102,16 +118,23 @@ class _ReportScreenState extends State<ReportScreen> {
                 Container(
                   height: 220,
                   padding: const EdgeInsets.all(16),
-                  child: FutureBuilder<Map<String, double>>(
+                  // 4. PERBAIKI TIPE FUTUREBUILDER
+                  child: FutureBuilder<Map<String, Map<String, double>>>(
                     future: _salesDataFuture,
                     builder: (context, chartSnapshot) {
                       if (!chartSnapshot.hasData) return const Center(child: CircularProgressIndicator());
+                      
                       final salesData = chartSnapshot.data!;
-                      final List<FlSpot> spots = [];
+                      final List<FlSpot> salesSpots = [];
+                      final List<FlSpot> profitSpots = []; // 5. TAMBAH SPOT UNTUK PROFIT
                       final List<String> dates = salesData.keys.toList();
+                      
                       for (int i = 0; i < dates.length; i++) {
-                        spots.add(FlSpot(i.toDouble(), salesData[dates[i]]!));
+                        String dateKey = dates[i];
+                        salesSpots.add(FlSpot(i.toDouble(), salesData[dateKey]!['sales']!));
+                        profitSpots.add(FlSpot(i.toDouble(), salesData[dateKey]!['profit']!)); // 6. ISI DATA PROFIT
                       }
+                      
                       return LineChart(
                         LineChartData(
                           gridData: FlGridData(show: false),
@@ -127,8 +150,12 @@ class _ReportScreenState extends State<ReportScreen> {
                             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                           ),
                           borderData: FlBorderData(show: false),
+                          // 7. TAMBAHKAN 2 LINECHARTBAR
                           lineBarsData: [
-                            LineChartBarData(spots: spots, isCurved: true, color: primaryColor, barWidth: 3, dotData: FlDotData(show: _selectedDays <= 7), belowBarData: BarAreaData(show: true, color: primaryColor.withOpacity(0.15))),
+                            // Garis Omzet
+                            LineChartBarData(spots: salesSpots, isCurved: true, color: Colors.blue, barWidth: 3, dotData: FlDotData(show: _selectedDays <= 7), belowBarData: BarAreaData(show: true, color: Colors.blue.withOpacity(0.15))),
+                            // Garis Profit
+                            LineChartBarData(spots: profitSpots, isCurved: true, color: Colors.green, barWidth: 3, dotData: FlDotData(show: _selectedDays <= 7), belowBarData: BarAreaData(show: true, color: Colors.green.withOpacity(0.15))),
                           ],
                         ),
                       );
@@ -137,7 +164,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
 
                 // 3. DAFTAR RIWAYAT TERAKHIR
-                const Divider(thickness: 8, color: Color(0xFFF5F5F5)), // Pemisah tebal
+                const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Text("Riwayat Transaksi Terbaru", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -152,8 +179,12 @@ class _ReportScreenState extends State<ReportScreen> {
                     final tx = transactions[index];
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
+                      // 8. TAMPILKAN LABA DI SETIAP TRANSAKSI
                       title: Text(formatCurrency.format(tx.totalPrice), style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(formatDateTime.format(tx.timestamp.toDate())),
+                      subtitle: Text(
+                        "${formatDateTime.format(tx.timestamp.toDate())}\nLaba: ${formatCurrency.format(tx.totalProfit)}", // <-- Tampilkan Laba
+                         style: TextStyle(color: Colors.green[700]),
+                      ),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
@@ -176,10 +207,9 @@ class _ReportScreenState extends State<ReportScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: color.withOpacity(0.05), // Ubah warna
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+          border: Border.all(color: color.withOpacity(0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

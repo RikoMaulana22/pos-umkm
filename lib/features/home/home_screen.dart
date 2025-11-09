@@ -10,7 +10,8 @@ import '../pos/screens/pos_screen.dart';
 import '../inventory/screens/inventory_screen.dart';
 import '../reports/screens/report_screen.dart';
 import '../settings/screens/settings_screen.dart';
-import '../admin/screens/add_cashier_screen.dart'; 
+// 1. IMPOR LAYAR BARU
+import '../admin/screens/manage_cashier_screen.dart'; 
 
 class HomeScreen extends StatelessWidget {
   final String storeId;
@@ -133,11 +134,13 @@ class HomeScreen extends StatelessWidget {
                         icon: Icons.settings,
                         onTap: () => _goTo(context, SettingsScreen(storeId: storeId)),
                       ),
+                      // 2. UBAH TOMBOL INI
                       DashboardButton(
-                        label: "Tambah Kasir",
+                        label: "Manajemen Kasir",
                         icon: Icons.person_add,
                         onTap: () {
-                          _goTo(context, AddCashierScreen(storeId: storeId));
+                          // 3. ARAHKAN KE LAYAR BARU
+                          _goTo(context, ManageCashierScreen(storeId: storeId));
                         },
                       ),
                     ],

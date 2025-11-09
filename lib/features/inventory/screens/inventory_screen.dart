@@ -6,6 +6,8 @@ import 'add_product_screen.dart';
 import 'edit_product_screen.dart';
 import '../../../shared/theme.dart';
 import 'category_screen.dart';
+// 1. IMPOR LAYAR BARU
+import 'stock_adjustment_screen.dart';
 
 class InventoryScreen extends StatelessWidget {
   final String storeId;
@@ -25,10 +27,20 @@ class InventoryScreen extends StatelessWidget {
         title: const Text('Inventaris (Produk)'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
-        // ===========================================
-        // KODE YANG DITAMBAHKAN (BLOK actions)
-        // ===========================================
         actions: [
+          // 2. TOMBOL BARU UNTUK STOCK OPNAME
+          IconButton(
+            icon: const Icon(Icons.compare_arrows),
+            tooltip: "Penyesuaian Stok",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StockAdjustmentScreen(storeId: storeId),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.category),
             tooltip: "Manajemen Kategori",
@@ -101,18 +113,15 @@ class InventoryScreen extends StatelessWidget {
                             product.imageUrl!.isNotEmpty)
                         ? NetworkImage(product.imageUrl!)
                         : null,
-                    child: (product.imageUrl == null ||
-                            product.imageUrl!.isEmpty)
-                        ? const Icon(Icons.inventory, color: Colors.grey)
-                        : null,
+                    child:
+                        (product.imageUrl == null || product.imageUrl!.isEmpty)
+                            ? const Icon(Icons.inventory, color: Colors.grey)
+                            : null,
                   ),
                   title: Text(
                     product.name,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  // ===========================================
-                  // KODE YANG DIPERBARUI (SUBTITLE)
-                  // ===========================================
                   subtitle: Text(
                     "Kategori: ${product.categoryName ?? 'N/A'}\n"
                     "Stok: ${product.stok} | Modal: ${formatCurrency.format(product.hargaModal)}",

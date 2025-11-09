@@ -1,13 +1,15 @@
 // lib/features/reports/services/report_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:erp_umkm/features/reports/models/transaction_model.dart';
-import 'package:intl/intl.dart'; // <-- 1. TAMBAHKAN IMPOR INI
+import 'package:intl/intl.dart'; 
+// Impor ini sudah benar
+import '../../reports/models/transaction_item_model.dart';
 
 class ReportService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // ==========================================================
-  // 2. FUNGSI UNTUK DAFTAR RIWAYAT (Sudah ada)
+  // FUNGSI INI SUDAH BENAR
   // ==========================================================
   Stream<List<TransactionModel>> getTransactions(String storeId) {
     return _firestore
@@ -23,22 +25,23 @@ class ReportService {
   }
 
   // ==========================================================
-  // 3. FUNGSI BARU: Mengambil data untuk GRAFIK (Dari kode Anda)
+  // PERBAIKAN: Ganti fungsi getDailySalesData dengan yang ini
   // ==========================================================
-  Future<Map<String, double>> getDailySalesData(String storeId, int days) async {
+  Future<Map<String, Map<String, double>>> getDailySalesAndProfitData(
+      String storeId, int days) async {
     // 1. Tentukan rentang waktu
     DateTime endDate = DateTime.now();
     DateTime startDate = endDate.subtract(Duration(days: days - 1));
     Timestamp startTimestamp = Timestamp.fromDate(
         DateTime(startDate.year, startDate.month, startDate.day));
 
-    // 2. Siapkan Map untuk menampung hasil
-    // Kita inisialisasi dengan 0 untuk setiap hari
-    Map<String, double> dailySales = {};
+    // 2. Siapkan Map untuk menampung hasil (sales dan profit)
+    Map<String, Map<String, double>> dailyData = {};
     for (int i = 0; i < days; i++) {
       DateTime day = startDate.add(Duration(days: i));
       String formattedDate = DateFormat('dd/MM').format(day);
-      dailySales[formattedDate] = 0.0;
+      // Inisialisasi sales dan profit dengan 0.0
+      dailyData[formattedDate] = {'sales': 0.0, 'profit': 0.0};
     }
 
     // 3. Ambil data transaksi dari Firestore
@@ -51,15 +54,20 @@ class ReportService {
 
     // 4. Kelompokkan (agregat) data di sisi klien (Dart)
     for (var doc in querySnapshot.docs) {
+      // Gunakan TransactionModel untuk mendapatkan helper totalProfit
       TransactionModel tx = TransactionModel.fromFirestore(doc);
       String formattedDate = DateFormat('dd/MM').format(tx.timestamp.toDate());
-      
-      // Tambahkan total penjualan ke hari yang sesuai
-      if (dailySales.containsKey(formattedDate)) {
-        dailySales[formattedDate] = dailySales[formattedDate]! + tx.totalPrice;
+
+      // Tambahkan total penjualan DAN total profit ke hari yang sesuai
+      if (dailyData.containsKey(formattedDate)) {
+        dailyData[formattedDate]!['sales'] =
+            (dailyData[formattedDate]!['sales'] ?? 0) + tx.totalPrice;
+        
+        dailyData[formattedDate]!['profit'] =
+            (dailyData[formattedDate]!['profit'] ?? 0) + tx.totalProfit;
       }
     }
 
-    return dailySales;
+    return dailyData;
   }
 }
