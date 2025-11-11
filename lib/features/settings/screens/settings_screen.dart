@@ -7,7 +7,7 @@ import '../models/store_model.dart';
 import '../services/settings_service.dart';
 import '../../auth/widgets/custom_button.dart';
 import '../../auth/widgets/custom_textfield.dart';
-// 1. IMPOR BARU
+// 1. IMPOR BARU (Sudah ada)
 import '../services/printer_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -25,12 +25,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late Future<StoreModel> _storeDetailsFuture;
   bool _isLoading = false;
 
-  // 2. STATE UNTUK PRINTER
+  // 2. STATE UNTUK PRINTER (Diperbarui)
   final PrinterService _printerService = PrinterService();
   final BlueThermalPrinter _printer = BlueThermalPrinter.instance;
   String? _savedPrinterName;
   String? _savedPrinterAddress;
-  bool _isConnecting = false;
+  bool _isPrinterBusy = false; // Menggantikan _isConnecting
+  String _printerStatusMessage = ""; // Pesan untuk loading overlay
 
   @override
   void initState() {
@@ -40,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       storeNameController.text = store.name;
     });
 
-    // 3. Muat data printer yang tersimpan saat halaman dibuka
+    // 3. Muat data printer (Tidak berubah)
     _loadSavedPrinter();
   }
 
@@ -74,7 +75,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           backgroundColor: Colors.green));
       Navigator.pop(context);
     } catch (e) {
-      // ... (error handling tidak berubah)
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Gagal simpan: ${e.toString()}"),
+          backgroundColor: Colors.red));
     } finally {
       if (mounted) {
         setState(() {
@@ -84,11 +88,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // 4. FUNGSI UNTUK MENAMPILKAN MODAL PRINTER
+  // 4. FUNGSI UNTUK MENAMPILKAN MODAL PRINTER (Diperbarui)
   void _showPrinterDialog() {
     List<BluetoothDevice> devices = [];
     BluetoothDevice? selectedDevice;
     bool isScanning = false;
+
+    // Menampilkan instruksi pairing
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text(
+          "Pastikan printer sudah di-pairing di Pengaturan Bluetooth HP Anda."),
+      duration: Duration(seconds: 4),
+      backgroundColor: Colors.blue,
+    ));
 
     showModalBottomSheet(
       context: context,
@@ -103,8 +115,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 devices = [];
               });
               try {
+                // Periksa apakah Bluetooth menyala
+                bool? isEnabled = await _printer.isOn;
+                if (isEnabled != true) {
+                  throw Exception("Bluetooth tidak menyala.");
+                }
                 devices = await _printer.getBondedDevices();
               } catch (e) {
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text("Gagal memindai: ${e.toString()}"),
                     backgroundColor: Colors.red));
@@ -115,7 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             }
 
-            // Fungsi hubungkan & simpan
+            // Fungsi hubungkan & simpan (Diperbarui)
             void connectAndSave() async {
               if (selectedDevice == null) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -125,35 +143,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
 
               setState(() {
-                _isConnecting = true;
-              }); // Loading di layar utama
+                _isPrinterBusy = true;
+                _printerStatusMessage = "Menghubungkan...";
+              });
               Navigator.pop(context); // Tutup modal
 
               try {
                 bool? isConnected = await _printer.connect(selectedDevice!);
                 if (isConnected == true) {
                   await _printerService.savePrinter(selectedDevice!);
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content:
                           Text("Printer ${selectedDevice!.name} terhubung!"),
                       backgroundColor: Colors.green));
                 } else {
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text("Gagal terhubung ke printer"),
                       backgroundColor: Colors.red));
                 }
               } catch (e) {
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text("Error koneksi: ${e.toString()}"),
                     backgroundColor: Colors.red));
               } finally {
-                setState(() {
-                  _isConnecting = false;
-                });
-                _loadSavedPrinter(); // Muat ulang data di layar utama
+                if (mounted) {
+                  setState(() {
+                    _isPrinterBusy = false;
+                    _printerStatusMessage = "";
+                  });
+                  _loadSavedPrinter(); // Muat ulang data di layar utama
+                }
               }
             }
 
+            // (UI Modal tidak berubah signifikan)
             return Container(
               height: MediaQuery.of(context).size.height * 0.6,
               padding: const EdgeInsets.all(20),
@@ -175,7 +201,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           : const Icon(Icons.refresh),
                       label: Text(isScanning
                           ? "Memindai..."
-                          : "Scan Perangkat Bluetooth"),
+                          : "Scan Perangkat (Paired)"),
                     ),
                   ),
                   const Divider(height: 24),
@@ -225,19 +251,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 5. FUNGSI UNTUK PUTUSKAN PRINTER
+  // 5. FUNGSI UNTUK PUTUSKAN PRINTER (Diperbarui)
   void _disconnectPrinter() async {
+    setState(() {
+      _isPrinterBusy = true;
+      _printerStatusMessage = "Memutus koneksi...";
+    });
     try {
       await _printer.disconnect();
       await _printerService.clearPrinter();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Printer terputus"), backgroundColor: Colors.orange));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("Error: ${e.toString()}"),
           backgroundColor: Colors.red));
     } finally {
-      _loadSavedPrinter();
+      if (mounted) {
+        setState(() {
+          _isPrinterBusy = false;
+          _printerStatusMessage = "";
+        });
+        _loadSavedPrinter();
+      }
+    }
+  }
+
+  // 6. FUNGSI BARU UNTUK TEST PRINT
+  Future<void> _runTestPrint() async {
+    if (_savedPrinterAddress == null || _savedPrinterAddress!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Tidak ada printer tersimpan"),
+          backgroundColor: Colors.orange));
+      return;
+    }
+
+    setState(() {
+      _isPrinterBusy = true;
+      _printerStatusMessage = "Mencetak tes...";
+    });
+
+    try {
+      // Cek koneksi, jika putus, sambungkan lagi
+      bool? isConnected = await _printer.isConnected;
+      if (isConnected != true) {
+        final device = BluetoothDevice(_savedPrinterName, _savedPrinterAddress);
+        await _printer.connect(device);
+      }
+
+      // Kirim perintah cetak
+      _printer.printCustom(
+          "Test Print Berhasil!", 1, 1); // Ukuran sedang, align tengah
+      _printer.printNewLine();
+      _printer.printCustom(
+          "POS UMKM Siap Digunakan", 0, 1); // Ukuran normal, align tengah
+      _printer.printNewLine();
+      _printer.printNewLine();
+      _printer.paperCut();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Test print terkirim!"),
+          backgroundColor: Colors.green));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Gagal test print: ${e.toString()}"),
+          backgroundColor: Colors.red));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPrinterBusy = false;
+          _printerStatusMessage = "";
+        });
+      }
     }
   }
 
@@ -257,7 +346,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              // ... (error handling tidak berubah) ...
+              if (snapshot.hasError) {
+                return Center(child: Text("Error: ${snapshot.error}"));
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: Text("Gagal memuat data toko."));
+              }
 
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
@@ -278,7 +372,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
 
-                    // 6. UBAH TAMPILAN LISTTILE PRINTER
+                    // 7. PERBARUI TAMPILAN LISTTILE PRINTER
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
@@ -293,15 +387,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: Text(_savedPrinterName ?? "Hubungkan Printer"),
                       subtitle: Text(_savedPrinterAddress ??
                           "Belum ada printer terhubung"),
+                      // Perbarui Trailing (Tombol di kanan)
                       trailing: _savedPrinterName != null
-                          ? TextButton(
-                              onPressed: _disconnectPrinter,
-                              child: const Text("Putus",
-                                  style: TextStyle(color: Colors.red)),
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // TOMBOL TEST PRINT BARU
+                                TextButton(
+                                  onPressed:
+                                      _isPrinterBusy ? null : _runTestPrint,
+                                  child: const Text("Test",
+                                      style: TextStyle(color: Colors.blue)),
+                                ),
+                                // Tombol Putus
+                                TextButton(
+                                  onPressed: _isPrinterBusy
+                                      ? null
+                                      : _disconnectPrinter,
+                                  child: const Text("Putus",
+                                      style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
                             )
                           : const Icon(Icons.chevron_right),
-                      onTap:
-                          _savedPrinterName == null ? _showPrinterDialog : null,
+                      onTap: _savedPrinterName == null && !_isPrinterBusy
+                          ? _showPrinterDialog
+                          : null,
                     ),
 
                     const Divider(height: 32),
@@ -314,7 +425,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          if (_isLoading || _isConnecting) // 7. Tampilkan loading
+
+          // 8. PERBARUI LOADING OVERLAY
+          if (_isLoading || _isPrinterBusy)
             Container(
               color: Colors.black.withOpacity(0.5),
               child: Center(
@@ -324,9 +437,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const CircularProgressIndicator(color: Colors.white),
                   const SizedBox(height: 16),
                   Text(
-                    _isConnecting
-                        ? "Menghubungkan ke printer..."
-                        : "Menyimpan...",
+                    _isLoading ? "Menyimpan..." : _printerStatusMessage,
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   )
                 ],
