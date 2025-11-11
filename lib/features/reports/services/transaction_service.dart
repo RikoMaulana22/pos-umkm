@@ -1,9 +1,7 @@
 // lib/features/pos/services/transaction_service.dart
-import 'package:cloud_firestore/cloud_firestore.dart'; // package: bukan package.
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// Contoh jalur yang mungkin benar, silakan sesuaikan
 import '../../pos/providers/cart_provider.dart';
-// 1. IMPOR MODEL BARU
 import '../../reports/models/transaction_item_model.dart';
 
 class TransactionService {
@@ -16,6 +14,7 @@ class TransactionService {
     required CartProvider cart,
     required String storeId,
     required String paymentMethod,
+    // INI ADALAH BAGIAN YANG MEMPERBAIKI ERROR ANDA
     double? cashReceived,
     double? change,
   }) async {

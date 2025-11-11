@@ -1,6 +1,7 @@
 // lib/features/settings/services/settings_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/store_model.dart';
+import '../services/printer_service.dart';
 
 class SettingsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

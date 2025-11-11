@@ -29,6 +29,8 @@ dependencies:
   # State Management
   provider: ^6.1.2
 
+  shared_preferences: ^2.2.3
+
   # Ikon
   cupertino_icons: ^1.0.8
 
