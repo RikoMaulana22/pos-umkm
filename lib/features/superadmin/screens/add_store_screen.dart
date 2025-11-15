@@ -23,12 +23,26 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
 
   DateTime? _selectedExpiryDate;
   bool _isLoading = false;
+  String _selectedPackage = 'bronze'; // <-- 1. TAMBAH STATE PAKET
+
+  // 2. ATUR DEFAULT TRIAL 30 HARI DI initState
+  @override
+  void initState() {
+    super.initState();
+    // Atur tanggal kedaluwarsa default ke 30 hari dari sekarang
+    _selectedExpiryDate = DateTime.now().add(const Duration(days: 30));
+    expiryDateController.text =
+        DateFormat('dd/MM/yyyy').format(_selectedExpiryDate!);
+    // Atur harga default (misal 0 untuk trial)
+    priceController.text = "0";
+  }
 
   // Fungsi untuk menampilkan pemilih tanggal
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 30)),
+      initialDate: _selectedExpiryDate ??
+          DateTime.now().add(const Duration(days: 30)), // Gunakan state
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
     );
@@ -66,6 +80,7 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
         storeName: storeNameController.text,
         expiryDate: _selectedExpiryDate!,
         subscriptionPrice: double.parse(priceController.text),
+        subscriptionPackage: _selectedPackage, // <-- 3. KIRIM PAKET
       );
 
       if (!mounted) return;
@@ -139,12 +154,39 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
                     style:
                         TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
+
+                // 4. TAMBAHKAN DROPDOWN PAKET
+                DropdownButtonFormField<String>(
+                  value: _selectedPackage,
+                  decoration: const InputDecoration(
+                    labelText: "Paket Langganan Awal",
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'bronze', child: Text("🟫 Bronze (Dasar)")),
+                    DropdownMenuItem(
+                        value: 'silver', child: Text("⚪ Silver (Berkembang)")),
+                    DropdownMenuItem(
+                        value: 'gold', child: Text("🟨 Gold (Skala Besar)")),
+                  ],
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedPackage = newValue;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
                 // Field Tanggal Kedaluwarsa
                 TextField(
                   controller: expiryDateController,
                   readOnly: true,
                   decoration: const InputDecoration(
-                    hintText: "Pilih Tanggal Kedaluwarsa",
+                    labelText: "Tanggal Kedaluwarsa (Trial 30 Hari)",
                     suffixIcon: Icon(Icons.calendar_today),
                     border: OutlineInputBorder(),
                     contentPadding:

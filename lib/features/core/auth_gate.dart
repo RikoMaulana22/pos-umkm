@@ -9,7 +9,7 @@ import '../pos/screens/pos_screen.dart';
 import '../superadmin/screens/superadmin_dashboard.dart';
 import 'subscription_expired_screen.dart';
 // 1. IMPOR STORE MODEL
-import '../settings/models/store_model.dart'; 
+import '../settings/models/store_model.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -41,7 +41,6 @@ class AuthGate extends StatelessWidget {
               // 4. Gagal ambil data role
 
               if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                
                 return const LoginOrRegister();
               }
 
@@ -65,12 +64,14 @@ class AuthGate extends StatelessWidget {
                   }
 
                   // 7. LOGIKA LANGGANAN (Subscription)
-                  return StreamBuilder<StoreModel>( // Ubah ke StoreModel
+                  return StreamBuilder<StoreModel>(
+                    // Ubah ke StoreModel
                     stream: FirebaseFirestore.instance
                         .collection('stores')
                         .doc(storeId)
                         .snapshots()
-                        .map((doc) => StoreModel.fromFirestore(doc)), // Konversi ke model
+                        .map((doc) =>
+                            StoreModel.fromFirestore(doc)), // Konversi ke model
                     builder: (context, storeSnapshot) {
                       if (storeSnapshot.connectionState ==
                           ConnectionState.waiting) {
@@ -86,17 +87,29 @@ class AuthGate extends StatelessWidget {
 
                       // 3. GUNAKAN MODEL.CANOPERATE
                       final store = storeSnapshot.data!;
-                      
-                      if (store.canOperate) { // <-- LOGIKA BARU DI SINI
+
+                      if (store.canOperate) {
                         // Jika toko aktif dan langganan valid
                         if (role == 'admin') {
-                          return HomeScreen(storeId: storeId);
+                          return HomeScreen(
+                            storeId: storeId,
+                            subscriptionPackage: store.subscriptionPackage,
+                          );
                         } else {
-                          return PosScreen(storeId: storeId);
+                          return PosScreen(
+                            storeId: storeId,
+                            subscriptionPackage: store.subscriptionPackage,
+                          );
                         }
                       } else {
                         // Langganan Habis ATAU Toko di-suspend
-                        return const SubscriptionExpiredScreen();
+                        // ===========================================
+                        // INI ADALAH PERBAIKAN PENTING
+                        // ===========================================
+                        return SubscriptionExpiredScreen(
+                          storeId: storeId,
+                          userRole: role, // <-- KIRIM ROLE PENGGUNA
+                        );
                       }
                     },
                   );

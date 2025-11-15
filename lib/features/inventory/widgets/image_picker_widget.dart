@@ -25,7 +25,9 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 70,
+        imageQuality: 30,
+        maxHeight: 100,
+        maxWidth: 100,
       );
 
       if (pickedFile != null) {
@@ -64,7 +66,9 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
           child: OutlinedButton.icon(
             onPressed: _pickImage,
             icon: const Icon(Icons.upload_file),
-            label: Text(_imageBytes != null || (widget.existingImageUrl != null && widget.existingImageUrl!.isNotEmpty)
+            label: Text(_imageBytes != null ||
+                    (widget.existingImageUrl != null &&
+                        widget.existingImageUrl!.isNotEmpty)
                 ? "Ganti Gambar"
                 : "Pilih Gambar Produk"),
           ),
@@ -80,7 +84,8 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
         fit: BoxFit.cover,
       );
     }
-    if (widget.existingImageUrl != null && widget.existingImageUrl!.isNotEmpty) {
+    if (widget.existingImageUrl != null &&
+        widget.existingImageUrl!.isNotEmpty) {
       return Image.network(
         widget.existingImageUrl!,
         fit: BoxFit.cover,

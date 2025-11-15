@@ -8,7 +8,13 @@ import '../services/report_service.dart';
 
 class ReportScreen extends StatefulWidget {
   final String storeId;
-  const ReportScreen({super.key, required this.storeId});
+  final String subscriptionPackage; // <-- Tambahan
+
+  const ReportScreen({
+    super.key,
+    required this.storeId,
+    required this.subscriptionPackage,
+  });
 
   @override
   State<ReportScreen> createState() => _ReportScreenState();
@@ -16,146 +22,250 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   final ReportService _reportService = ReportService();
-  final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
+
+  final formatCurrency =
+      NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
   final formatDateTime = DateFormat('dd/MM/yyyy HH:mm');
-  
-  // PERBAIKAN: Ubah jadi Map<String, Map<String, double>>
+
   late Future<Map<String, Map<String, double>>> _salesDataFuture;
   int _selectedDays = 7;
+
+  bool _isSilverOrGold = false; // <-- Penanda fitur premium
 
   @override
   void initState() {
     super.initState();
+
+    _isSilverOrGold = widget.subscriptionPackage == "silver" ||
+        widget.subscriptionPackage == "gold";
+
     _refreshData();
   }
 
   void _refreshData() {
     setState(() {
-      // Panggil service baru yang mengambil sales dan profit
-      _salesDataFuture = _reportService.getDailySalesAndProfitData(widget.storeId, _selectedDays);
+      _salesDataFuture = _reportService.getDailySalesAndProfitData(
+        widget.storeId,
+        _selectedDays,
+      );
     });
+  }
+
+  // Dialog export (premium)
+  void _showExportDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Fitur Export"),
+        content: const Text(
+          "Fitur export laporan (PDF/Excel) hanya untuk paket Silver & Gold.",
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text("OK")),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Laporan'),
+        title: const Text("Laporan"),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
+          // Export hanya muncul jika Silver/Gold
+          if (_isSilverOrGold)
+            IconButton(
+              icon: const Icon(Icons.download),
+              tooltip: "Export Laporan",
+              onPressed: _showExportDialog,
+            ),
+
+          // Filter tanggal
           PopupMenuButton<int>(
             icon: const Icon(Icons.filter_list),
-            tooltip: "Filter Tanggal",
             onSelected: (value) {
               _selectedDays = value;
               _refreshData();
             },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 7, child: Text("7 Hari Terakhir")),
-              const PopupMenuItem(value: 30, child: Text("30 Hari Terakhir")),
+              if (_isSilverOrGold)
+                const PopupMenuItem(value: 30, child: Text("30 Hari Terakhir")),
             ],
           ),
         ],
       ),
+
+      // STREAM transaksi realtime
       body: StreamBuilder<List<TransactionModel>>(
         stream: _reportService.getTransactions(widget.storeId),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData)
             return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data == null) {
-             return const Center(child: Text("Belum ada data transaksi."));
+          final transactions = snapshot.data!;
+
+          if (transactions.isEmpty) {
+            return const Center(child: Text("Belum ada data transaksi."));
           }
 
-          final transactions = snapshot.data!;
-          
-          // Hitung Ringkasan
+          // Hitung summary
           double totalOmzet = 0;
-          double totalProfit = 0; // <-- 1. TAMBAH INI
-          int totalItemsSold = 0;
-          
+          double totalProfit = 0;
+          int totalItems = 0;
+
           for (var tx in transactions) {
             totalOmzet += tx.totalPrice;
-            totalProfit += tx.totalProfit; // <-- 2. TAMBAH INI
-            totalItemsSold += tx.totalItems;
+            totalProfit += tx.totalProfit;
+            totalItems += tx.totalItems;
           }
+
+          // ================================
+          // HITUNG PRODUK TERLARIS
+          // ================================
+          final Map<String, int> productSales = {};
+          final Map<String, String> productNames = {};
+
+          for (var tx in transactions) {
+            for (var item in tx.items) {
+              productSales.update(item.productId, (v) => v + item.quantity,
+                  ifAbsent: () => item.quantity);
+              productNames.putIfAbsent(item.productId, () => item.productName);
+            }
+          }
+
+          final topProducts = (productSales.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value)))
+              .take(5)
+              .toList();
 
           return SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. KARTU RINGKASAN (WOW FACTOR)
+                // ===========================
+                // SUMMARY CARD
+                // ===========================
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
                       Row(
                         children: [
-                          _buildSummaryCard("Total Omzet", formatCurrency.format(totalOmzet), Icons.monetization_on, Colors.blue),
+                          _buildSummaryCard(
+                              "Total Omzet",
+                              formatCurrency.format(totalOmzet),
+                              Icons.monetization_on,
+                              Colors.blue),
                           const SizedBox(width: 12),
-                          // 3. TAMPILKAN KARTU LABA
-                          _buildSummaryCard("Total Laba", formatCurrency.format(totalProfit), Icons.trending_up, Colors.green),
+                          _buildSummaryCard(
+                              "Total Laba",
+                              formatCurrency.format(totalProfit),
+                              Icons.trending_up,
+                              Colors.green),
                         ],
                       ),
                       const SizedBox(height: 12),
-                       Row(
+                      Row(
                         children: [
-                           _buildSummaryCard("Transaksi", transactions.length.toString(), Icons.receipt_long, Colors.orange),
+                          _buildSummaryCard(
+                              "Transaksi",
+                              transactions.length.toString(),
+                              Icons.receipt_long,
+                              Colors.orange),
                           const SizedBox(width: 12),
-                          _buildSummaryCard("Item Terjual", totalItemsSold.toString(), Icons.shopping_bag, Colors.purple),
+                          _buildSummaryCard(
+                              "Item Terjual",
+                              totalItems.toString(),
+                              Icons.shopping_bag,
+                              Colors.purple),
                         ],
                       ),
                     ],
                   ),
                 ),
 
-                // 2. GRAFIK PENJUALAN
+                // ===========================
+                // GRAFIK
+                // ===========================
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Text("Grafik $_selectedDays Hari Terakhir", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)),
+                  child: Text(
+                    "Grafik $_selectedDays Hari Terakhir",
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor),
+                  ),
                 ),
-                Container(
+
+                SizedBox(
                   height: 220,
-                  padding: const EdgeInsets.all(16),
-                  // 4. PERBAIKI TIPE FUTUREBUILDER
-                  child: FutureBuilder<Map<String, Map<String, double>>>(
+                  child: FutureBuilder(
                     future: _salesDataFuture,
-                    builder: (context, chartSnapshot) {
-                      if (!chartSnapshot.hasData) return const Center(child: CircularProgressIndicator());
-                      
-                      final salesData = chartSnapshot.data!;
-                      final List<FlSpot> salesSpots = [];
-                      final List<FlSpot> profitSpots = []; // 5. TAMBAH SPOT UNTUK PROFIT
-                      final List<String> dates = salesData.keys.toList();
-                      
-                      for (int i = 0; i < dates.length; i++) {
-                        String dateKey = dates[i];
-                        salesSpots.add(FlSpot(i.toDouble(), salesData[dateKey]!['sales']!));
-                        profitSpots.add(FlSpot(i.toDouble(), salesData[dateKey]!['profit']!)); // 6. ISI DATA PROFIT
+                    builder: (context,
+                        AsyncSnapshot<Map<String, Map<String, double>>> snap) {
+                      if (!snap.hasData) {
+                        return const Center(child: CircularProgressIndicator());
                       }
-                      
+
+                      final salesData = snap.data!;
+                      final dates = salesData.keys.toList();
+
+                      final salesSpots = <FlSpot>[];
+                      final profitSpots = <FlSpot>[];
+
+                      for (int i = 0; i < dates.length; i++) {
+                        salesSpots.add(FlSpot(
+                            i.toDouble(), salesData[dates[i]]!["sales"]!));
+                        profitSpots.add(FlSpot(
+                            i.toDouble(), salesData[dates[i]]!["profit"]!));
+                      }
+
                       return LineChart(
                         LineChartData(
                           gridData: FlGridData(show: false),
                           titlesData: FlTitlesData(
-                            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: (_selectedDays/7).ceilToDouble(), getTitlesWidget: (value, meta) {
-                              if (value.toInt() >= 0 && value.toInt() < dates.length) {
-                                return Padding(padding: const EdgeInsets.only(top:8), child: Text(dates[value.toInt()], style: const TextStyle(fontSize: 10)));
-                              }
-                              return const Text("");
-                            }, reservedSize: 22)),
-                            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (value, meta) {
+                                  if (value.toInt() >= 0 &&
+                                      value.toInt() < dates.length) {
+                                    return Text(dates[value.toInt()],
+                                        style: const TextStyle(fontSize: 10));
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
+                            ),
+                            leftTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false)),
                           ),
                           borderData: FlBorderData(show: false),
-                          // 7. TAMBAHKAN 2 LINECHARTBAR
                           lineBarsData: [
-                            // Garis Omzet
-                            LineChartBarData(spots: salesSpots, isCurved: true, color: Colors.blue, barWidth: 3, dotData: FlDotData(show: _selectedDays <= 7), belowBarData: BarAreaData(show: true, color: Colors.blue.withOpacity(0.15))),
-                            // Garis Profit
-                            LineChartBarData(spots: profitSpots, isCurved: true, color: Colors.green, barWidth: 3, dotData: FlDotData(show: _selectedDays <= 7), belowBarData: BarAreaData(show: true, color: Colors.green.withOpacity(0.15))),
+                            LineChartBarData(
+                              spots: salesSpots,
+                              isCurved: true,
+                              color: Colors.blue,
+                              barWidth: 3,
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: Colors.blue.withOpacity(.15),
+                              ),
+                            ),
+                            LineChartBarData(
+                              spots: profitSpots,
+                              isCurved: true,
+                              color: Colors.green,
+                              barWidth: 3,
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: Colors.green.withOpacity(.15),
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -163,37 +273,89 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                 ),
 
-                // 3. DAFTAR RIWAYAT TERAKHIR
                 const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
+
+                // ===========================
+                // RIWAYAT TRANSAKSI
+                // ===========================
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text("Riwayat Transaksi Terbaru", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "Riwayat Transaksi Terbaru",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                ListView.separated(
-                  shrinkWrap: true, // Agar bisa di dalam SingleChildScrollView
-                  physics: const NeverScrollableScrollPhysics(), // Matikan scroll listviewnya
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: transactions.length > 10 ? 10 : transactions.length, // Tampilkan max 10 terakhir
-                  separatorBuilder: (context, index) => const Divider(height: 1),
+
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount:
+                      transactions.length > 10 ? 10 : transactions.length,
                   itemBuilder: (context, index) {
                     final tx = transactions[index];
+
                     return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      // 8. TAMPILKAN LABA DI SETIAP TRANSAKSI
-                      title: Text(formatCurrency.format(tx.totalPrice), style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(formatCurrency.format(tx.totalPrice),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(
-                        "${formatDateTime.format(tx.timestamp.toDate())}\nLaba: ${formatCurrency.format(tx.totalProfit)}", // <-- Tampilkan Laba
-                         style: TextStyle(color: Colors.green[700]),
+                        "${formatDateTime.format(tx.timestamp.toDate())}\n"
+                        "Laba: ${formatCurrency.format(tx.totalProfit)}",
+                        style: TextStyle(color: Colors.green[700]),
                       ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
-                        child: Text("${tx.totalItems} item • ${tx.paymentMethod}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      trailing: Text(
+                        "${tx.totalItems} item • ${tx.paymentMethod}",
+                        style: const TextStyle(fontSize: 12),
                       ),
                     );
                   },
                 ),
-                const SizedBox(height: 30),
+
+                const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
+
+                // ===========================
+                // PRODUK TERLARIS
+                // ===========================
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Text(
+                    "Produk Terlaris (Top 5)",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                if (topProducts.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text("Belum ada produk terjual.",
+                        style: TextStyle(color: Colors.grey)),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: topProducts.length,
+                    itemBuilder: (context, index) {
+                      final item = topProducts[index];
+                      final name =
+                          productNames[item.key] ?? "Produk tidak ditemukan";
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: primaryColor.withOpacity(.1),
+                          child: Text("${index + 1}",
+                              style: TextStyle(color: primaryColor)),
+                        ),
+                        title: Text(name,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
+                        trailing: Text("${item.value}x Terjual",
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                      );
+                    },
+                  ),
+
+                const SizedBox(height: 40),
               ],
             ),
           );
@@ -202,22 +364,29 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  // ===========================
+  // WIDGET KARTU RINGKASAN
+  // ===========================
+  Widget _buildSummaryCard(
+      String title, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05), // Ubah warna
+          color: color.withOpacity(.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withOpacity(.25)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, color: color, size: 24),
             const SizedBox(height: 8),
-            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-            Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            Text(title,
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
       ),

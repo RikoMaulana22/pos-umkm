@@ -19,12 +19,12 @@ class EditProductScreen extends StatefulWidget {
 
 class _EditProductScreenState extends State<EditProductScreen> {
   final InventoryService _inventoryService = InventoryService();
-  
+
   late TextEditingController nameController;
   late TextEditingController modalController;
   late TextEditingController jualController;
   late TextEditingController stokController;
-  
+
   Uint8List? _imageBytes; // <-- 3. Gunakan Uint8List
   String? _imageName;
   bool _isLoading = false;
@@ -33,13 +33,18 @@ class _EditProductScreenState extends State<EditProductScreen> {
   void initState() {
     super.initState();
     nameController = TextEditingController(text: widget.product.name);
-    modalController = TextEditingController(text: widget.product.hargaModal.toStringAsFixed(0));
-    jualController = TextEditingController(text: widget.product.hargaJual.toStringAsFixed(0));
-    stokController = TextEditingController(text: widget.product.stok.toString());
+    modalController = TextEditingController(
+        text: widget.product.hargaModal.toStringAsFixed(0));
+    jualController = TextEditingController(
+        text: widget.product.hargaJual.toStringAsFixed(0));
+    stokController =
+        TextEditingController(text: widget.product.stok.toString());
   }
 
   void _updateProduct() async {
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     double? hargaModal;
     double? hargaJual;
@@ -75,19 +80,21 @@ class _EditProductScreenState extends State<EditProductScreen> {
           content: Text("Produk berhasil diperbarui!"),
           backgroundColor: Colors.green));
       Navigator.pop(context);
-
     } on FormatException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Error: ${e.message}"),
-          backgroundColor: Colors.red));
+          content: Text("Error: ${e.message}"), backgroundColor: Colors.red));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("Gagal update produk: ${e.toString()}"),
           backgroundColor: Colors.red));
     } finally {
-      if (mounted) { setState(() { _isLoading = false; }); }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -112,24 +119,29 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
     if (confirm == null || !confirm) return;
 
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      await _inventoryService.deleteProduct(widget.product.id!);
-      
+      await _inventoryService.deleteProduct(widget.product.id);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Produk berhasil dihapus!"),
           backgroundColor: Colors.green));
       Navigator.pop(context);
-
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("Gagal menghapus produk: ${e.toString()}"),
           backgroundColor: Colors.red));
     } finally {
-      if (mounted) { setState(() { _isLoading = false; }); }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -162,7 +174,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 CustomTextField(
                   controller: modalController,
                   hintText: "Harga Modal (Beli)",
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true), // 5. Tambahkan keyboardType & inputFormatters
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal:
+                          true), // 5. Tambahkan keyboardType & inputFormatters
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d*')),
                   ],
@@ -171,7 +185,8 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 CustomTextField(
                   controller: jualController,
                   hintText: "Harga Jual",
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d*')),
                   ],
@@ -186,10 +201,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                
                 ImagePickerWidget(
                   existingImageUrl: widget.product.imageUrl,
-                  onImagePicked: (imageBytes, fileName) { // <-- 6. Terima 2 parameter
+                  onImagePicked: (imageBytes, fileName) {
+                    // <-- 6. Terima 2 parameter
                     _imageBytes = imageBytes;
                     _imageName = fileName;
                   },
@@ -202,11 +217,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
               ],
             ),
           ),
-          
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
-              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+              child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white)),
             ),
         ],
       ),

@@ -48,7 +48,9 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Stok saat ini: ${product.stok}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text("Stok saat ini: ${product.stok}",
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: adjController,
@@ -58,7 +60,9 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'))],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'))
+                  ],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return "Jumlah tidak boleh kosong";
@@ -89,11 +93,12 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                 if (formKey.currentState!.validate()) {
                   final int amount = int.parse(adjController.text);
                   try {
-                    await _inventoryService.adjustStock(product.id!, amount);
+                    await _inventoryService.adjustStock(product.id, amount);
                     if (!mounted) return;
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Stok ${product.name} berhasil disesuaikan"),
+                      content:
+                          Text("Stok ${product.name} berhasil disesuaikan"),
                       backgroundColor: Colors.green,
                     ));
                   } catch (e) {
@@ -162,13 +167,16 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                   itemBuilder: (context, index) {
                     final product = products[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
                       child: ListTile(
                         title: Text(product.name),
-                        subtitle: Text("Kategori: ${product.categoryName ?? 'N/A'}"),
+                        subtitle:
+                            Text("Kategori: ${product.categoryName ?? 'N/A'}"),
                         trailing: Text(
                           "Stok: ${product.stok}",
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         onTap: () => _showAdjustStockDialog(product),
                       ),

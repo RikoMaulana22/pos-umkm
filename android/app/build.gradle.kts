@@ -10,6 +10,7 @@ plugins {
 
 android {
     namespace = "com.example.erp_umkm"
+
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

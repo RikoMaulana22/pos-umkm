@@ -1,13 +1,24 @@
 // lib/features/core/subscription_expired_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../auth/widgets/custom_button.dart';
+// 1. HAPUS IMPOR CUSTOM_BUTTON
+import 'screens/subscription_package_screen.dart';
 
 class SubscriptionExpiredScreen extends StatelessWidget {
-  const SubscriptionExpiredScreen({super.key});
+  final String storeId;
+  // 2. TERIMA userRole
+  final String userRole;
+  const SubscriptionExpiredScreen({
+    super.key,
+    required this.storeId,
+    required this.userRole, // <-- TAMBAHKAN DI CONSTRUCTOR
+  });
 
   @override
   Widget build(BuildContext context) {
+    // 3. Tentukan apakah yang login adalah Admin
+    final bool isAdmin = userRole == 'admin';
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
@@ -31,17 +42,62 @@ class SubscriptionExpiredScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                "Masa berlaku langganan Anda telah habis. Silakan hubungi Super Admin untuk memperpanjang.",
+              // 4. Tampilkan pesan yang berbeda untuk Admin vs Kasir
+              Text(
+                isAdmin
+                    ? "Masa berlaku langganan Anda telah habis. Silakan perbarui paket Anda untuk melanjutkan."
+                    : "Langganan toko ini telah habis. Hanya Admin/Owner yang dapat memperbaruinya. Silakan hubungi Admin Anda.",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 40),
-              CustomButton(
-                onTap: () {
-                  FirebaseAuth.instance.signOut();
-                },
-                text: "Logout",
+
+              // 5. HANYA TAMPILKAN TOMBOL INI JIKA DIA ADMIN
+              if (isAdmin)
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SubscriptionPackageScreen(storeId: storeId),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Lihat Pilihan Paket",
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              if (isAdmin) const SizedBox(height: 16), // Beri jarak jika admin
+
+              // Tombol Logout (Selalu tampil)
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey[700],
+                    side: BorderSide(color: Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    FirebaseAuth.instance.signOut();
+                  },
+                  child: const Text("Logout", style: TextStyle(fontSize: 16)),
+                ),
               ),
             ],
           ),

@@ -11,11 +11,16 @@ import '../inventory/screens/inventory_screen.dart';
 import '../reports/screens/report_screen.dart';
 import '../settings/screens/settings_screen.dart';
 // 1. IMPOR LAYAR BARU
-import '../admin/screens/manage_cashier_screen.dart'; 
+import '../admin/screens/manage_cashier_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final String storeId;
-  const HomeScreen({super.key, required this.storeId});
+  final String subscriptionPackage;
+  const HomeScreen({
+    super.key,
+    required this.storeId,
+    required this.subscriptionPackage,
+  });
 
   void signOut() {
     FirebaseAuth.instance.signOut();
@@ -30,10 +35,13 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isSilverOrGold =
+        subscriptionPackage == 'silver' || subscriptionPackage == 'gold';
+
     return Scaffold(
       body: Column(
         children: [
-          // Header Kustom
+          // Header Kustom (Tidak berubah)
           Container(
             height: 150,
             width: double.infinity,
@@ -86,7 +94,7 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Konten Halaman (Grid Menu)
           Expanded(
             child: Stack(
@@ -105,7 +113,6 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: GridView.count(
@@ -117,32 +124,45 @@ class HomeScreen extends StatelessWidget {
                       DashboardButton(
                         label: "Transaksi (Kasir)",
                         icon: Icons.point_of_sale,
-                        onTap: () => _goTo(context, PosScreen(storeId: storeId)),
+                        onTap: () => _goTo(
+                            context,
+                            PosScreen(
+                                storeId: storeId,
+                                subscriptionPackage: subscriptionPackage)),
                       ),
                       DashboardButton(
                         label: "Produk (Inventaris)",
                         icon: Icons.inventory_2,
-                        onTap: () => _goTo(context, InventoryScreen(storeId: storeId)),
+                        onTap: () =>
+                            _goTo(context, InventoryScreen(storeId: storeId)),
                       ),
                       DashboardButton(
                         label: "Laporan",
                         icon: Icons.bar_chart,
-                        onTap: () => _goTo(context, ReportScreen(storeId: storeId)),
+                        // ===========================================
+                        // MODIFIKASI DI SINI
+                        // ===========================================
+                        onTap: () => _goTo(
+                            context,
+                            ReportScreen(
+                                storeId: storeId,
+                                subscriptionPackage: subscriptionPackage)),
                       ),
                       DashboardButton(
                         label: "Pengaturan",
                         icon: Icons.settings,
-                        onTap: () => _goTo(context, SettingsScreen(storeId: storeId)),
+                        onTap: () =>
+                            _goTo(context, SettingsScreen(storeId: storeId)),
                       ),
-                      // 2. UBAH TOMBOL INI
-                      DashboardButton(
-                        label: "Manajemen Kasir",
-                        icon: Icons.person_add,
-                        onTap: () {
-                          // 3. ARAHKAN KE LAYAR BARU
-                          _goTo(context, ManageCashierScreen(storeId: storeId));
-                        },
-                      ),
+                      if (isSilverOrGold)
+                        DashboardButton(
+                          label: "Manajemen Kasir",
+                          icon: Icons.person_add,
+                          onTap: () {
+                            _goTo(
+                                context, ManageCashierScreen(storeId: storeId));
+                          },
+                        ),
                     ],
                   ),
                 ),

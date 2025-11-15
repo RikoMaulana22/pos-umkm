@@ -8,6 +8,7 @@ class StoreModel {
   final DateTime? subscriptionExpiry;
   final double subscriptionPrice;
   final bool isActive; // <-- FIELD BARU UNTUK KONTROL
+  final String subscriptionPackage;
 
   StoreModel({
     required this.id,
@@ -16,6 +17,7 @@ class StoreModel {
     this.subscriptionExpiry,
     this.subscriptionPrice = 0.0,
     this.isActive = true, // Default aktif saat dibuat
+    this.subscriptionPackage = 'bronze',
   });
 
   factory StoreModel.fromFirestore(DocumentSnapshot doc) {
@@ -27,6 +29,8 @@ class StoreModel {
       subscriptionExpiry: (data['subscriptionExpiry'] as Timestamp?)?.toDate(),
       subscriptionPrice: (data['subscriptionPrice'] ?? 0).toDouble(),
       isActive: data['isActive'] ?? true,
+      subscriptionPackage:
+          data['subscriptionPackage'] ?? 'bronze', // <-- 3. AMBIL DARI FIRESTORE
     );
   }
 

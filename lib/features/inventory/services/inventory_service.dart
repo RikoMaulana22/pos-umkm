@@ -52,7 +52,7 @@ class InventoryService {
         stok: stok,
         imageUrl: downloadUrl ?? '', // kosong jika tanpa gambar
         createdBy: _userId!,
-        
+
         categoryId: categoryId,
         categoryName: categoryName,
       );
@@ -79,14 +79,11 @@ class InventoryService {
     Query query =
         _firestore.collection('products').where('storeId', isEqualTo: storeId);
 
-
     if (categoryId != null && categoryId.isNotEmpty) {
       query = query.where('categoryId', isEqualTo: categoryId);
     }
 
-
     query = query.orderBy('name');
-
 
     return query.snapshots().map((snapshot) {
       return snapshot.docs
@@ -137,7 +134,6 @@ class InventoryService {
         'stok': product.stok,
         'imageUrl': newImageUrl ?? '',
         'timestamp': FieldValue.serverTimestamp(),
-
         'categoryId': product.categoryId,
         'categoryName': product.categoryName,
       };
@@ -163,7 +159,6 @@ class InventoryService {
 
       final data = doc.data() as Map<String, dynamic>;
       final imageUrl = data['imageUrl'] as String?;
-
 
       if (imageUrl != null && imageUrl.isNotEmpty) {
         try {

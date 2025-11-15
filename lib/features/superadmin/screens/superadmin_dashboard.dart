@@ -8,6 +8,10 @@ import 'add_store_screen.dart';
 import 'edit_store_screen.dart';
 import 'superadmin_revenue_screen.dart';
 
+// 1. IMPOR DUA FILE BARU
+import '../models/upgrade_request_model.dart';
+import 'upgrade_requests_screen.dart';
+
 class SuperAdminDashboard extends StatefulWidget {
   const SuperAdminDashboard({super.key});
 
@@ -24,7 +28,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // Kita beri warna AppBar yang berbeda untuk Super Admin
     final Color superAdminColor = Colors.red[800]!;
 
     return Scaffold(
@@ -33,6 +36,34 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         backgroundColor: superAdminColor,
         foregroundColor: Colors.white,
         actions: [
+          // 2. TOMBOL NOTIFIKASI UPGRADE (DENGAN BADGE)
+          StreamBuilder<List<UpgradeRequestModel>>(
+            stream: _service.getUpgradeRequests(),
+            builder: (context, snapshot) {
+              final int requestCount =
+                  (snapshot.hasData && snapshot.data != null)
+                      ? snapshot.data!.length
+                      : 0;
+              
+              return IconButton(
+                icon: Badge(
+                  label: Text('$requestCount'),
+                  isLabelVisible: requestCount > 0,
+                  child: const Icon(Icons.notifications),
+                ),
+                tooltip: "Permintaan Upgrade",
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UpgradeRequestsScreen(),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -97,7 +128,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                         title: Text(store.name,
                             style:
                                 const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text("Owner ID: ${store.ownerId}"),
+                        subtitle: Text(
+                            "Paket: ${store.subscriptionPackage} / Owner ID: ${store.ownerId}"), // Tampilkan info paket
                         trailing: const Icon(Icons.edit, color: Colors.grey),
                         onTap: () {
                           Navigator.push(

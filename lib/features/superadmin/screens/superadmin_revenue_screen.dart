@@ -8,19 +8,21 @@ class SuperAdminRevenueScreen extends StatefulWidget {
   const SuperAdminRevenueScreen({super.key});
 
   @override
-  State<SuperAdminRevenueScreen> createState() => _SuperAdminRevenueScreenState();
+  State<SuperAdminRevenueScreen> createState() =>
+      _SuperAdminRevenueScreenState();
 }
 
 class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
   final SuperAdminService _service = SuperAdminService();
-  final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
+  final formatCurrency =
+      NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Laporan Penghasilan'),
-        backgroundColor: Colors.red[800],
+        backgroundColor: const Color.fromARGB(255, 38, 145, 187),
         foregroundColor: Colors.white,
       ),
       body: FutureBuilder<Map<String, dynamic>>(
@@ -37,7 +39,7 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
           }
 
           final data = snapshot.data!;
-          
+
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -77,9 +79,18 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
                   crossAxisSpacing: 16,
                   childAspectRatio: 1.5,
                   children: [
-                    _buildStatCard("Total Toko", data['totalStores'].toString(), Icons.store, Colors.blue),
-                    _buildStatCard("Langganan Aktif", data['activeSubscriptions'].toString(), Icons.check_circle, Colors.green),
-                    _buildStatCard("Langganan Habis", data['expiredSubscriptions'].toString(), Icons.timer_off, Colors.orange),
+                    _buildStatCard("Total Toko", data['totalStores'].toString(),
+                        Icons.store, Colors.blue),
+                    _buildStatCard(
+                        "Langganan Aktif",
+                        data['activeSubscriptions'].toString(),
+                        Icons.check_circle,
+                        Colors.green),
+                    _buildStatCard(
+                        "Langganan Habis",
+                        data['expiredSubscriptions'].toString(),
+                        Icons.timer_off,
+                        Colors.orange),
                   ],
                 ),
               ],
@@ -91,7 +102,8 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
   }
 
   // Widget helper untuk kartu statistik
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -106,7 +118,8 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 Text(title, style: const TextStyle(color: Colors.grey)),
               ],

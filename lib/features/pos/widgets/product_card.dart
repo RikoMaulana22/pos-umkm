@@ -12,12 +12,13 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
-    
+    final formatCurrency =
+        NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
+
     // Gunakan 'Consumer' agar HANYA kartu ini yang rebuild saat cart berubah
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
-        final int quantityInCart = cart.getQuantity(product.id!);
+        final int quantityInCart = cart.getQuantity(product.id);
         final bool isInCart = quantityInCart > 0;
 
         return Card(
@@ -25,7 +26,9 @@ class ProductCard extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             // Beri border hijau jika ada di keranjang
-            side: isInCart ? BorderSide(color: primaryColor, width: 2) : BorderSide.none,
+            side: isInCart
+                ? BorderSide(color: primaryColor, width: 2)
+                : BorderSide.none,
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -36,7 +39,8 @@ class ProductCard extends StatelessWidget {
                 // ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${product.name} +1"), duration: Duration(milliseconds: 500)));
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Stok habis!"), backgroundColor: Colors.red));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text("Stok habis!"), backgroundColor: Colors.red));
               }
             },
             child: Stack(
@@ -50,8 +54,10 @@ class ProductCard extends StatelessWidget {
                         width: double.infinity,
                         color: Colors.grey[200],
                         child: (product.imageUrl != null)
-                            ? Image.network(product.imageUrl!, fit: BoxFit.cover)
-                            : const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                            ? Image.network(product.imageUrl!,
+                                fit: BoxFit.cover)
+                            : const Icon(Icons.image_not_supported,
+                                size: 50, color: Colors.grey),
                       ),
                     ),
                     // Info Produk
@@ -69,18 +75,24 @@ class ProductCard extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             formatCurrency.format(product.hargaJual),
-                            style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: primaryColor,
+                                fontWeight: FontWeight.bold),
                           ),
                           Text(
                             "Stok: ${product.stok}",
-                            style: TextStyle(fontSize: 12, color: product.stok < 5 ? Colors.red : Colors.grey),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: product.stok < 5
+                                    ? Colors.red
+                                    : Colors.grey),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-                
+
                 // Indikator Jumlah di Keranjang (Badge)
                 if (isInCart)
                   Positioned(
@@ -94,7 +106,8 @@ class ProductCard extends StatelessWidget {
                       ),
                       child: Text(
                         quantityInCart.toString(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),

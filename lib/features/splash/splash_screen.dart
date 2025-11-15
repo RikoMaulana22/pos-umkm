@@ -37,7 +37,7 @@ class _SplashScreenState extends State<SplashScreen> {
               width: 500, // Tentukan ukuran container (sesuaikan ukurannya)
               height: 500, // Tentukan ukuran container
               child: Image.asset(
-                'assets/images/pos_umkm.png', // Path ke logo Anda
+                'assets/images/ezzen.png', // Path ke logo Anda
                 fit: BoxFit.contain, // Pastikan gambar pas di dalam container
               ),
             ),

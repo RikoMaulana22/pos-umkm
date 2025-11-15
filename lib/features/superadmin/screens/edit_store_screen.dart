@@ -21,16 +21,17 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   final TextEditingController storeNameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController expiryDateController = TextEditingController();
-  
+
   DateTime? _selectedExpiryDate;
   bool _isLoading = false;
-  bool _isActive = true; // 1. TAMBAH STATE BARU
+  bool _isActive = true;
+  String _selectedPackage = 'bronze'; // <-- 1. TAMBAH STATE PAKET
 
   @override
   void initState() {
     super.initState();
     storeNameController.text = widget.store.name;
-    
+
     FirebaseFirestore.instance
         .collection('stores')
         .doc(widget.store.id)
@@ -40,13 +41,16 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         final data = doc.data() as Map<String, dynamic>;
         final double price = (data['subscriptionPrice'] ?? 0.0).toDouble();
         final Timestamp? expiry = data['subscriptionExpiry'];
-        
+
         setState(() {
           priceController.text = price.toStringAsFixed(0);
-          _isActive = data['isActive'] ?? true; // Ambil status
+          _isActive = data['isActive'] ?? true;
+          _selectedPackage =
+              data['subscriptionPackage'] ?? 'bronze'; // <-- 2. AMBIL PAKET
           if (expiry != null) {
             _selectedExpiryDate = expiry.toDate();
-            expiryDateController.text = DateFormat('dd/MM/yyyy').format(_selectedExpiryDate!);
+            expiryDateController.text =
+                DateFormat('dd/MM/yyyy').format(_selectedExpiryDate!);
           }
         });
       }
@@ -56,7 +60,8 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedExpiryDate ?? DateTime.now().add(const Duration(days: 30)),
+      initialDate:
+          _selectedExpiryDate ?? DateTime.now().add(const Duration(days: 30)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
     );
@@ -77,16 +82,18 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
           backgroundColor: Colors.red));
       return;
     }
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      // 3. KIRIM SEMUA DATA (TERMASUK isActive)
       await _service.updateStoreSubscription(
         storeId: widget.store.id,
-        newName: storeNameController.text, // <-- PERBAIKAN: Kirim nama baru
+        newName: storeNameController.text,
         newExpiryDate: _selectedExpiryDate!,
         newPrice: double.parse(priceController.text),
-        isActive: _isActive, // <-- PERBAIKAN: Kirim status
+        isActive: _isActive,
+        newPackage: _selectedPackage, // <-- 3. KIRIM PAKET BARU
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -99,7 +106,11 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
           content: Text("Gagal: ${e.toString()}"),
           backgroundColor: Colors.red));
     } finally {
-      if (mounted) { setState(() { _isLoading = false; }); }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -108,16 +119,23 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Hapus Toko Ini?"),
-        content: Text("PERINGATAN: Menghapus toko '${widget.store.name}' akan menghapus data admin dan tokonya. Lanjutkan?"),
+        content: Text(
+            "PERINGATAN: Menghapus toko '${widget.store.name}' akan menghapus data admin dan tokonya. Lanjutkan?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Batal")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Hapus", style: TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Batal")),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Hapus", style: TextStyle(color: Colors.red))),
         ],
       ),
     );
 
     if (confirm == null || !confirm) return;
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       await _service.deleteStore(widget.store.id, widget.store.ownerId);
@@ -132,7 +150,11 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
           content: Text("Gagal menghapus: ${e.toString()}"),
           backgroundColor: Colors.red));
     } finally {
-      if (mounted) { setState(() { _isLoading = false; }); }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -162,15 +184,48 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                     style:
                         TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                CustomTextField(controller: storeNameController, hintText: "Nama Toko", ),
+                CustomTextField(
+                  controller: storeNameController,
+                  hintText: "Nama Toko",
+                ),
                 const SizedBox(height: 24),
-                
                 const Text("Pengaturan Langganan",
                     style:
                         TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                CustomTextField(controller: priceController, hintText: "Harga Sewa (Rp)", keyboardType: TextInputType.number),
+                CustomTextField(
+                    controller: priceController,
+                    hintText: "Harga Sewa (Rp)",
+                    keyboardType: TextInputType.number),
                 const SizedBox(height: 16),
+
+                // 4. TAMBAHKAN DROPDOWN PAKET
+                DropdownButtonFormField<String>(
+                  value: _selectedPackage,
+                  decoration: const InputDecoration(
+                    labelText: "Paket Langganan",
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'bronze', child: Text("🟫 Bronze (Dasar)")),
+                    DropdownMenuItem(
+                        value: 'silver', child: Text("⚪ Silver (Berkembang)")),
+                    DropdownMenuItem(
+                        value: 'gold', child: Text("🟨 Gold (Skala Besar)")),
+                  ],
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedPackage = newValue;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+
                 TextField(
                   controller: expiryDateController,
                   readOnly: true,
@@ -184,8 +239,6 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                   onTap: () => _selectDate(context),
                 ),
                 const SizedBox(height: 16),
-                
-                // 4. TAMBAHKAN SWITCH UNTUK STATUS AKTIF
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade400),
@@ -193,7 +246,9 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                   ),
                   child: SwitchListTile(
                     title: const Text("Toko Aktif"),
-                    subtitle: Text(_isActive ? "Toko dapat beroperasi" : "Toko dinonaktifkan (suspended)"),
+                    subtitle: Text(_isActive
+                        ? "Toko dapat beroperasi"
+                        : "Toko dinonaktifkan (suspended)"),
                     value: _isActive,
                     onChanged: (bool value) {
                       setState(() {
@@ -203,7 +258,6 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                     activeColor: primaryColor,
                   ),
                 ),
-                
                 const SizedBox(height: 32),
                 CustomButton(
                   onTap: _isLoading ? null : _updateStore,
@@ -215,7 +269,8 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
-              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+              child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white)),
             ),
         ],
       ),
