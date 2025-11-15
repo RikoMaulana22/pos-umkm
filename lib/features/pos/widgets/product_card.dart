@@ -20,6 +20,9 @@ class ProductCard extends StatelessWidget {
       builder: (context, cart, child) {
         final int quantityInCart = cart.getQuantity(product.id);
         final bool isInCart = quantityInCart > 0;
+        final bool hasDiscount = (product.hargaDiskon != null &&
+            product.hargaDiskon! > 0 &&
+            product.hargaDiskon! < product.hargaJual);
 
         return Card(
           elevation: 2,
@@ -73,12 +76,36 @@ class ProductCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
+                          if (hasDiscount)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  formatCurrency.format(product.hargaJual),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
                           Text(
-                            formatCurrency.format(product.hargaJual),
-                            style: TextStyle(
-                                color: primaryColor,
-                                fontWeight: FontWeight.bold),
-                          ),
+                                  formatCurrency.format(product.hargaJualFinal),
+                                  style: TextStyle(
+                                      color: Colors.red[700],
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )
+                            else
+                            // Tampilkan harga normal jika tidak ada diskon
+                            Text(
+                              formatCurrency.format(product.hargaJualFinal),
+                              style: TextStyle(
+                                  color: primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16),
+                            ),
                           Text(
                             "Stok: ${product.stok}",
                             style: TextStyle(

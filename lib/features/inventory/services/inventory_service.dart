@@ -1,8 +1,11 @@
+// lib/features/inventory/services/inventory_service.dart
+
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product_model.dart';
+import '../models/product_variant_model.dart'; // <-- tambahan dari kode 1
 
 class InventoryService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -11,24 +14,38 @@ class InventoryService {
 
   String? get _userId => _auth.currentUser?.uid;
 
-  /// ✅ Tambah produk baru ke Firestore
+  /// ========================================================
+  /// ✅ TAMBAH PRODUK (Simpel / Varian)
+  /// ========================================================
   Future<void> addProduct({
     required String name,
-    required double hargaModal,
-    required double hargaJual,
-    required int stok,
-    Uint8List? imageBytes,
-    String? imageName,
     required String storeId,
     required String categoryId,
     required String categoryName,
+    Uint8List? imageBytes,
+    String? imageName,
+
+    // 🔹 Produk varian atau tidak
+    required bool isVariantProduct,
+
+    // 🔹 Produk simpel
+    double? hargaModal,
+    double? hargaJual,
+    int? stok,
+    double? hargaDiskon,
+    String? sku,
+
+    // 🔹 Produk varian
+    List<ProductVariant>? variants,
   }) async {
     if (_userId == null) throw Exception("User belum login");
 
     try {
       String? downloadUrl;
 
-      // 🔹 Upload gambar hanya jika user memilih gambar
+      // ===========================
+      // 🖼️ Upload Gambar Jika Ada
+      // ===========================
       if (imageBytes != null && imageBytes.isNotEmpty && imageName != null) {
         final String fileExtension = imageName.contains('.')
             ? imageName.split('.').last.toLowerCase()
@@ -44,35 +61,42 @@ class InventoryService {
         downloadUrl = await snapshot.ref.getDownloadURL();
       }
 
-      // 🔹 Buat data produk
+      // ===========================
+      // 🔹 BUAT PRODUK BARU
+      // ===========================
       final product = Product(
         name: name.trim(),
-        hargaModal: hargaModal,
-        hargaJual: hargaJual,
-        stok: stok,
-        imageUrl: downloadUrl ?? '', // kosong jika tanpa gambar
+        imageUrl: downloadUrl ?? '',
         createdBy: _userId!,
-
         categoryId: categoryId,
         categoryName: categoryName,
+
+        // Produk varian
+        isVariantProduct: isVariantProduct,
+        variants: variants ?? [],
+
+        // Produk simpel
+        hargaModal: hargaModal ?? 0,
+        hargaJual: hargaJual ?? 0,
+        stok: stok ?? 0,
+        hargaDiskon: hargaDiskon,
+        sku: sku,
       );
 
       final productData = product.toMap()
         ..addAll({
           'storeId': storeId,
-          // 'timestamp' sudah ada di dalam .toMap()
         });
 
-      // 🔹 Simpan ke Firestore
       await _firestore.collection('products').add(productData);
-    } on FirebaseException catch (e) {
-      throw Exception("Firebase Error: ${e.message}");
     } catch (e) {
       throw Exception("Gagal menambah produk: $e");
     }
   }
 
-  /// ✅ Ambil daftar produk berdasarkan storeId
+  /// ========================================================
+  /// ✅ GET LIST PRODUK
+  /// ========================================================
   Stream<List<Product>> getProducts(String storeId, {String? categoryId}) {
     if (_userId == null) return Stream.value([]);
 
@@ -85,15 +109,15 @@ class InventoryService {
 
     query = query.orderBy('name');
 
-    return query.snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) =>
-              Product.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-          .toList();
-    });
+    return query.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) =>
+            Product.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList());
   }
 
-  /// ✅ Update data produk (dengan/ tanpa ganti gambar)
+  /// ========================================================
+  /// ✅ UPDATE PRODUK (Simpel / Varian)
+  /// ========================================================
   Future<void> updateProduct({
     required Product product,
     Uint8List? newImageBytes,
@@ -105,51 +129,59 @@ class InventoryService {
     try {
       String? newImageUrl = product.imageUrl;
 
+      // 🖼️ Ganti Gambar Jika Ada
       if (newImageBytes != null &&
           newImageBytes.isNotEmpty &&
           newImageName != null) {
         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
           try {
             await _storage.refFromURL(product.imageUrl!).delete();
-          } catch (e) {
-            print("⚠️ Gagal hapus gambar lama: $e");
-          }
+          } catch (_) {}
         }
 
         final fileExtension = newImageName.split('.').last.toLowerCase();
         final fileName =
             'products/${product.createdBy}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
 
-        final metadata = SettableMetadata(contentType: 'image/$fileExtension');
-        final uploadTask =
-            _storage.ref(fileName).putData(newImageBytes, metadata);
+        final uploadTask = _storage.ref(fileName).putData(newImageBytes,
+            SettableMetadata(contentType: 'image/$fileExtension'));
+
         final snapshot = await uploadTask.whenComplete(() {});
         newImageUrl = await snapshot.ref.getDownloadURL();
       }
 
+      // Data yang diperbarui
       final updatedData = {
         'name': product.name.trim(),
-        'hargaModal': product.hargaModal,
-        'hargaJual': product.hargaJual,
-        'stok': product.stok,
         'imageUrl': newImageUrl ?? '',
         'timestamp': FieldValue.serverTimestamp(),
         'categoryId': product.categoryId,
         'categoryName': product.categoryName,
+
+        // Produk varian
+        'isVariantProduct': product.isVariantProduct,
+        'variants': product.variants.map((v) => v.toMap()).toList(),
+
+        // Produk simpel
+        'hargaModal': product.hargaModal,
+        'hargaJual': product.hargaJual,
+        'stok': product.stok,
+        'hargaDiskon': product.hargaDiskon,
+        'sku': product.sku,
       };
 
       await _firestore
           .collection('products')
           .doc(product.id)
           .update(updatedData);
-    } on FirebaseException catch (e) {
-      throw Exception("Firebase Error: ${e.message}");
     } catch (e) {
       throw Exception("Gagal update produk: $e");
     }
   }
 
-  /// ✅ Hapus produk (beserta gambar)
+  /// ========================================================
+  /// ❌ HAPUS PRODUK
+  /// ========================================================
   Future<void> deleteProduct(String productId) async {
     if (_userId == null) throw Exception("User belum login");
 
@@ -157,41 +189,57 @@ class InventoryService {
       final doc = await _firestore.collection('products').doc(productId).get();
       if (!doc.exists) throw Exception("Produk tidak ditemukan");
 
-      final data = doc.data() as Map<String, dynamic>;
-      final imageUrl = data['imageUrl'] as String?;
+      final data = doc.data()!;
+      final imageUrl = data['imageUrl'];
 
+      // Hapus gambar
       if (imageUrl != null && imageUrl.isNotEmpty) {
         try {
           await _storage.refFromURL(imageUrl).delete();
-        } catch (e) {
-          print("⚠️ Gagal hapus gambar dari Storage: $e");
-        }
+        } catch (_) {}
       }
 
       await _firestore.collection('products').doc(productId).delete();
-    } on FirebaseException catch (e) {
-      throw Exception("Firebase Error: ${e.message}");
     } catch (e) {
       throw Exception("Gagal menghapus produk: $e");
     }
   }
 
-  // 1. FUNGSI BARU UNTUK PENYESUAIAN STOK
+  /// ========================================================
+  /// 🔄 UPDATE STOK (Produk Simpel)
+  /// ========================================================
   Future<void> adjustStock(String productId, int adjustmentAmount) async {
     if (_userId == null) throw Exception("User belum login");
-    if (adjustmentAmount == 0) return; // Tidak ada perubahan
+    if (adjustmentAmount == 0) return;
 
     try {
-      final productRef = _firestore.collection('products').doc(productId);
-
-      // Gunakan FieldValue.increment untuk keamanan data
-      await productRef.update({
+      await _firestore.collection('products').doc(productId).update({
         'stok': FieldValue.increment(adjustmentAmount),
       });
-    } on FirebaseException catch (e) {
-      throw Exception("Firebase Error: ${e.message}");
     } catch (e) {
       throw Exception("Gagal update stok: $e");
+    }
+  }
+
+  /// ========================================================
+  /// 🔍 CARI PRODUK BERDASARKAN SKU (Simpel)
+  /// ========================================================
+  Future<Product?> getProductBySKU(String storeId, String sku) async {
+    if (_userId == null) throw Exception("User belum login");
+
+    try {
+      final snap = await _firestore
+          .collection('products')
+          .where('storeId', isEqualTo: storeId)
+          .where('sku', isEqualTo: sku)
+          .limit(1)
+          .get();
+
+      if (snap.docs.isEmpty) return null;
+
+      return Product.fromMap(snap.docs.first.data(), snap.docs.first.id);
+    } catch (e) {
+      throw Exception("Gagal mencari produk: $e");
     }
   }
 }

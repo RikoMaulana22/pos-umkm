@@ -3,6 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aplikasi ini memerlukan akses ke galeri untuk menyimpan laporan PDF.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Aplikasi ini memerlukan akses ke folder Downloads untuk menyimpan laporan PDF.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Aplikasi ini memerlukan akses ke galeri untuk memilih gambar produk.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>

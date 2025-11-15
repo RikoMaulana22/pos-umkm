@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+// 🔥 Tambahkan import scanner
+import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
+
 import '../../inventory/services/inventory_service.dart';
 import '../../inventory/models/product_model.dart';
 import '../../../shared/theme.dart';
@@ -16,8 +20,6 @@ import '../../inventory/services/category_service.dart';
 
 class PosScreen extends StatefulWidget {
   final String storeId;
-
-  // 🔥 Tambahkan subscription di file baru
   final String subscriptionPackage;
 
   const PosScreen({
@@ -42,6 +44,9 @@ class _PosScreenState extends State<PosScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
+  // 🔥 Scanner State
+  bool _isScanning = false;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +62,69 @@ class _PosScreenState extends State<PosScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // 🔥 FUNGSI SCAN BARCODE
+  Future<void> _scanBarcode() async {
+    if (_isScanning) return;
+
+    setState(() => _isScanning = true);
+
+    String barcodeScanRes;
+
+    try {
+      barcodeScanRes = await FlutterBarcodeScanner.scanBarcode(
+        "#ff6666",
+        "Batal",
+        true,
+        ScanMode.BARCODE,
+      );
+    } catch (e) {
+      barcodeScanRes = "-1";
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal scan: $e")),
+        );
+      }
+    }
+
+    if (barcodeScanRes == "-1" || !mounted) {
+      setState(() => _isScanning = false);
+      return;
+    }
+
+    // Cari produk berdasarkan barcode
+    try {
+      final product = await _inventoryService.getProductBySKU(
+          widget.storeId, barcodeScanRes);
+
+      if (product != null) {
+        if (product.stok > 0) {
+          Provider.of<CartProvider>(context, listen: false).addItem(product);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Stok ${product.name} habis!"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  "Produk dengan barcode $barcodeScanRes tidak ditemukan.")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isScanning = false);
+      }
+    }
   }
 
   @override
@@ -78,7 +146,6 @@ class _PosScreenState extends State<PosScreen> {
                       backgroundColor: Colors.transparent,
                       builder: (ctx) => CartDetailsSheet(
                         storeId: widget.storeId,
-                        // 🔥 Kirim subscription ke CartDetails
                         subscriptionPackage: widget.subscriptionPackage,
                       ),
                     );
@@ -156,6 +223,13 @@ class _PosScreenState extends State<PosScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
+          // 🔥 Tombol Barcode Scanner
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: "Scan Barcode",
+            onPressed: _scanBarcode,
+          ),
+
           if (isCashier)
             IconButton(
               icon: const Icon(Icons.logout),
@@ -168,7 +242,7 @@ class _PosScreenState extends State<PosScreen> {
         children: [
           _buildCategoryFilter(),
 
-          // 🔥 Search Bar ditambahkan ke versi lama
+          // Search Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
