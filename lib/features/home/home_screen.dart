@@ -11,12 +11,12 @@ import '../inventory/screens/inventory_screen.dart';
 import '../reports/screens/report_screen.dart';
 import '../settings/screens/settings_screen.dart';
 import '../admin/screens/manage_cashier_screen.dart';
-// 1. IMPOR WIDGET BARU
 import 'widgets/low_stock_alert_widget.dart';
 
 class HomeScreen extends StatelessWidget {
   final String storeId;
   final String subscriptionPackage;
+
   const HomeScreen({
     super.key,
     required this.storeId,
@@ -38,6 +38,9 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isSilverOrGold =
         subscriptionPackage == 'silver' || subscriptionPackage == 'gold';
+
+    // Kita anggap 'admin' (Owner) yang masuk ke layar ini.
+    final bool isAdmin = true;
 
     return Scaffold(
       body: Column(
@@ -100,7 +103,6 @@ class HomeScreen extends StatelessWidget {
           Expanded(
             child: Stack(
               children: [
-                // (Dekorasi background tidak berubah)
                 Positioned(
                   bottom: -80,
                   right: -80,
@@ -115,25 +117,19 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-
-                // 2. UBAH Padding MENJADI ListView
                 ListView(
                   padding: const EdgeInsets.all(16.0),
                   children: [
-                    // 3. TAMPILKAN WIDGET STOK JIKA SILVER/GOLD
                     if (isSilverOrGold)
                       LowStockAlertWidget(
                           storeId: storeId, lowStockThreshold: 5),
-
-                    // 4. GridView sekarang di dalam ListView
                     GridView.count(
                       crossAxisCount: 2,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
                       childAspectRatio: 1.1,
-                      shrinkWrap: true, // Wajib di dalam ListView
-                      physics:
-                          const NeverScrollableScrollPhysics(), // Wajib di dalam ListView
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
                       children: [
                         DashboardButton(
                           label: "Transaksi (Kasir)",
@@ -159,19 +155,29 @@ class HomeScreen extends StatelessWidget {
                                   storeId: storeId,
                                   subscriptionPackage: subscriptionPackage)),
                         ),
-                        DashboardButton(
-                          label: "Pengaturan",
-                          icon: Icons.settings,
-                          onTap: () =>
-                              _goTo(context, SettingsScreen(storeId: storeId)),
-                        ),
-                        if (isSilverOrGold)
+                        if (isAdmin)
+                          DashboardButton(
+                            label: "Pengaturan",
+                            icon: Icons.settings,
+                            onTap: () => _goTo(
+                                context, SettingsScreen(storeId: storeId)),
+                          ),
+                        if (isSilverOrGold && isAdmin)
                           DashboardButton(
                             label: "Manajemen Kasir",
                             icon: Icons.person_add,
                             onTap: () {
-                              _goTo(context,
-                                  ManageCashierScreen(storeId: storeId));
+                              // ===================================
+                              // PERBAIKAN DI SINI
+                              // ===================================
+                              _goTo(
+                                  context,
+                                  ManageCashierScreen(
+                                    storeId: storeId,
+                                    subscriptionPackage:
+                                        subscriptionPackage, // <-- Kirim info paket
+                                  ));
+                              // ===================================
                             },
                           ),
                       ],

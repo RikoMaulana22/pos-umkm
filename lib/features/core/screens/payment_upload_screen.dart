@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../../shared/theme.dart';
 import '../../inventory/widgets/image_picker_widget.dart';
 import '../../auth/widgets/custom_button.dart';
-// 1. Impor service untuk upload
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -28,7 +27,7 @@ class PaymentUploadScreen extends StatefulWidget {
 class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
   Uint8List? _imageBytes;
   String? _imageName;
-  bool _isLoading = false;
+  double? _uploadProgress; // null = idle, 0-1 = uploading
 
   Future<void> _submitProof() async {
     if (_imageBytes == null || _imageName == null) {
@@ -39,7 +38,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
     }
 
     setState(() {
-      _isLoading = true;
+      _uploadProgress = 0.0;
     });
 
     try {
@@ -48,18 +47,28 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
           'payment_proofs/${widget.storeId}/${DateTime.now().millisecondsSinceEpoch}-${_imageName!}';
       final ref = FirebaseStorage.instance.ref().child(fileName);
       final metadata = SettableMetadata(contentType: 'image/jpeg');
+
       final uploadTask = ref.putData(_imageBytes!, metadata);
-      final snapshot = await uploadTask.whenComplete(() {});
+
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        if (mounted) {
+          setState(() {
+            _uploadProgress = snapshot.bytesTransferred / snapshot.totalBytes;
+          });
+        }
+      });
+
+      final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      // 2. Buat Dokumen di 'upgradeRequests' (seperti sebelumnya)
+      // 2. Buat Dokumen di 'upgradeRequests'
       await FirebaseFirestore.instance.collection('upgradeRequests').add({
         'storeId': widget.storeId,
         'packageName': widget.packageName,
         'price': widget.price,
-        'status': 'pending', // Status awal
+        'status': 'pending',
         'requestedAt': FieldValue.serverTimestamp(),
-        'proofOfPaymentURL': downloadUrl, // <-- URL GAMBAR BUKTI
+        'proofOfPaymentURL': downloadUrl,
       });
 
       if (!mounted) return;
@@ -75,14 +84,31 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Tutup dialog
-                Navigator.pop(context); // Kembali ke layar expired
-                Navigator.pop(context); // Kembali ke layar login (opsional)
+                Navigator.pop(context); // Kembali ke layar paket
               },
               child: const Text("OK"),
             ),
           ],
         ),
       );
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      String message = "Upload Gagal: ";
+      switch (e.code) {
+        case 'storage/unauthorized':
+          message += "Anda tidak memiliki izin.";
+          break;
+        case 'storage/canceled':
+          message += "Upload dibatalkan.";
+          break;
+        case 'storage/retry-limit-exceeded':
+          message += "Waktu habis, koneksi buruk. Coba lagi.";
+          break;
+        default:
+          message += "Terjadi error jaringan. Coba lagi nanti.";
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -91,7 +117,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _uploadProgress = null;
         });
       }
     }
@@ -120,7 +146,6 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                   style: TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 16),
-                // Tampilkan Gambar QRIS
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(16),
@@ -129,7 +154,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Image.asset(
-                      'assets/images/qris_dana.jpg', //
+                      'assets/images/qris_dana.jpg',
                       width: 250,
                     ),
                   ),
@@ -152,7 +177,6 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-                // Gunakan ImagePickerWidget yang sudah ada
                 ImagePickerWidget(
                   onImagePicked: (imageBytes, fileName) {
                     setState(() {
@@ -162,16 +186,29 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                   },
                 ),
                 const SizedBox(height: 32),
+                if (_uploadProgress != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: LinearProgressIndicator(
+                      value: _uploadProgress,
+                      minHeight: 10,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
                 CustomButton(
-                  onTap: _isLoading ? null : _submitProof,
-                  text: "Konfirmasi & Kirim Bukti",
+                  onTap: _uploadProgress != null ? null : _submitProof,
+                  text: _uploadProgress != null
+                      ? "Mengupload... (${(_uploadProgress! * 100).toStringAsFixed(0)}%)"
+                      : "Konfirmasi & Kirim Bukti",
                 )
               ],
             ),
           ),
-          if (_isLoading)
+          if (_uploadProgress != null &&
+              _uploadProgress! < 1) // Tampilkan overlay saat upload
             Container(
-              color: Colors.black.withOpacity(0.5),
+              // Perbaikan: withOpacity -> withAlpha
+              color: Colors.black.withAlpha(128),
               child: const Center(
                   child: CircularProgressIndicator(color: Colors.white)),
             ),

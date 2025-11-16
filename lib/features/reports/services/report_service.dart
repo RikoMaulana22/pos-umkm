@@ -1,7 +1,7 @@
 // lib/features/reports/services/report_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:erp_umkm/features/reports/models/transaction_model.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 // Impor ini sudah benar
 import '../../reports/models/transaction_item_model.dart';
 
@@ -11,16 +11,21 @@ class ReportService {
   // ==========================================================
   // FUNGSI INI SUDAH BENAR
   // ==========================================================
-  Stream<List<TransactionModel>> getTransactions(String storeId) {
-    return _firestore
+  Stream<List<TransactionModel>> getTransactions(String storeId,
+      {String? cashierId}) {
+    Query query = _firestore
         .collection('transactions')
-        .where('storeId', isEqualTo: storeId) // Filter berdasarkan ID toko
-        .orderBy('timestamp', descending: true) // Tampilkan yang terbaru di atas
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => TransactionModel.fromFirestore(doc))
-          .toList();
+        .where('storeId', isEqualTo: storeId);
+    if (cashierId != null && cashierId.isNotEmpty) {
+      query = query.where('cashierId', isEqualTo: cashierId);
+    }
+
+    // 4. Tambahkan pengurutan
+    query = query.orderBy('timestamp', descending: true);
+    return query.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return TransactionModel.fromFirestore(doc);
+      }).toList();
     });
   }
 
@@ -62,7 +67,7 @@ class ReportService {
       if (dailyData.containsKey(formattedDate)) {
         dailyData[formattedDate]!['sales'] =
             (dailyData[formattedDate]!['sales'] ?? 0) + tx.totalPrice;
-        
+
         dailyData[formattedDate]!['profit'] =
             (dailyData[formattedDate]!['profit'] ?? 0) + tx.totalProfit;
       }

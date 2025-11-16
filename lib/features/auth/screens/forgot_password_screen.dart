@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_button.dart';
-import '../widgets/custom_textfield.dart';
+// Perbaikan: Hapus import yang tidak terpakai
+// import '../widgets/custom_textfield.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -81,8 +82,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 30),
-
-                // Jika email sudah terkirim, tampilkan pesan sukses
                 if (_isSent)
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -97,10 +96,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   )
                 else
-                  // Jika belum, tampilkan form
                   Column(
                     children: [
-                      TextField( // Kita pakai TextField standar di sini
+                      TextField(
                         controller: emailController,
                         decoration: InputDecoration(
                           hintText: 'Email Anda',

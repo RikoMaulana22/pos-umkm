@@ -7,9 +7,7 @@ import '../widgets/custom_textfield.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  // UBAHAN: onRegisterTap -> onToggleTap
   final void Function()? onToggleTap;
-
   const LoginScreen({super.key, required this.onToggleTap});
 
   @override
@@ -32,20 +30,29 @@ class _LoginScreenState extends State<LoginScreen> {
         emailController.text.trim(),
         passwordController.text.trim(),
       );
+      // 'AuthGate' akan menangani navigasi jika sukses
+      // Kita tidak perlu 'if (mounted) setState' di sini karena
+      // widget ini akan di-unmount oleh AuthGate
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message ?? "Terjadi kesalahan"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Perbaikan: Tambahkan 'if (mounted)'
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? "Terjadi kesalahan"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Terjadi kesalahan: ${e.toString()}"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Perbaikan: Tambahkan 'if (mounted)'
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Terjadi kesalahan: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -58,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // background putih
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: Stack(
@@ -68,36 +75,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const SizedBox(height: 50),
-
-                    // ===============================
-                    // LOGO BARU
-                    // ===============================
                     SizedBox(
-                      width: 150,
-                      height: 150,
+                      width: 250,
+                      height: 250,
                       child: Image.asset(
-                        'assets/images/ezzen.png',
+                        'assets/images/pos_umkm.png',
                         fit: BoxFit.contain,
                       ),
                     ),
-
                     const SizedBox(height: 10),
-
                     CustomTextField(
                       controller: emailController,
                       hintText: 'Email',
                     ),
-
                     const SizedBox(height: 15),
-
                     CustomTextField(
                       controller: passwordController,
                       hintText: 'Password',
                       obscureText: true,
                     ),
-
                     const SizedBox(height: 10),
-
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 25.0),
                       child: Row(
@@ -113,27 +110,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               );
                             },
-                            child: Text(
-                              'Lupa password?',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
+                            child: Text('Lupa password?',
+                                style: TextStyle(color: Colors.grey[600])),
                           ),
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 25),
-
                     CustomButton(
                       onTap: _isLoading ? null : () => signIn(context),
                       text: "Login",
                     ),
-
                     const SizedBox(height: 50),
-
-                    // ===============================
-                    // TOMBOL DAFTAR GRATIS 30 HARI
-                    // ===============================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -157,13 +145,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-
-              // ===============================
-              // LOADING OVERLAY
-              // ===============================
               if (_isLoading)
                 Container(
-                  color: Colors.black.withOpacity(0.5),
+                  // Perbaikan: withOpacity -> withAlpha
+                  color: Colors.black.withAlpha(128),
                   child: const Center(
                     child: CircularProgressIndicator(
                       color: Colors.white,

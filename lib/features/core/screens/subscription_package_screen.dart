@@ -1,11 +1,10 @@
 // lib/features/core/screens/subscription_package_screen.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+// Perbaikan: Hapus import
+// import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/theme.dart';
-// 1. HAPUS CUSTOM_BUTTON, KITA AKAN GUNAKAN ELEVATEDBUTTON
-// 2. IMPOR HALAMAN UPLOAD BARU
-import 'payment_upload_screen.dart';
+import 'payment_upload_screen.dart'; // Import halaman upload
 
 class SubscriptionPackageScreen extends StatefulWidget {
   final String storeId;
@@ -16,11 +15,7 @@ class SubscriptionPackageScreen extends StatefulWidget {
       _SubscriptionPackageScreenState();
 }
 
-class _SubscriptionPackageScreenState
-    extends State<SubscriptionPackageScreen> {
-  // 3. HAPUS _isLoading DAN FUNGSI _handlePackageSelection
-  // Kita tidak perlu loading di sini lagi
-
+class _SubscriptionPackageScreenState extends State<SubscriptionPackageScreen> {
   @override
   Widget build(BuildContext context) {
     // Placeholder untuk harga
@@ -36,7 +31,6 @@ class _SubscriptionPackageScreenState
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
       ),
-      // 4. HAPUS STACK DAN LOADING OVERLAY
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -55,7 +49,6 @@ class _SubscriptionPackageScreenState
                 "Support Chat Basic"
               ],
               packageName: 'bronze',
-              // 5. UBAH FUNGSI ONSELECT
               onSelect: () {
                 Navigator.push(
                   context,
@@ -84,7 +77,6 @@ class _SubscriptionPackageScreenState
                 "Support Prioritas"
               ],
               packageName: 'silver',
-              // 6. UBAH FUNGSI ONSELECT
               onSelect: () {
                 Navigator.push(
                   context,
@@ -113,7 +105,6 @@ class _SubscriptionPackageScreenState
                 "Support VIP 24/7"
               ],
               packageName: 'gold',
-              // 7. UBAH FUNGSI ONSELECT
               onSelect: () {
                 Navigator.push(
                   context,
@@ -153,7 +144,8 @@ class _SubscriptionPackageScreenState
             color: (title.contains("Silver") || title.contains("Gold"))
                 ? primaryColor
                 : Colors.grey.shade300,
-            width: (title.contains("Silver") || title.contains("Gold")) ? 2 : 1),
+            width:
+                (title.contains("Silver") || title.contains("Gold")) ? 2 : 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -172,6 +164,8 @@ class _SubscriptionPackageScreenState
                   color: primaryColor),
             ),
             const Divider(height: 24),
+
+            // Perbaikan: Hapus .toList()
             ...features.map((feature) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
@@ -183,11 +177,11 @@ class _SubscriptionPackageScreenState
                   ],
                 ),
               );
-            }).toList(),
+            }),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              height: 50, // 8. GUNAKAN ELEVATEDBUTTON STANDAR
+              height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,

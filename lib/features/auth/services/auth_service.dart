@@ -149,6 +149,20 @@ class AuthService {
     });
   }
 
+  Stream<List<UserModel>> getStoreUsersForFilter(String storeId) {
+    return _firestore
+        .collection('users')
+        .where('storeId', isEqualTo: storeId)
+        // Ambil semua role di toko itu
+        .where('role', whereIn: ['admin', 'manager', 'kasir'])
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => UserModel.fromFirestore(doc))
+              .toList();
+        });
+  }
+
   // ============================================================
   // DELETE KASIR
   // ============================================================

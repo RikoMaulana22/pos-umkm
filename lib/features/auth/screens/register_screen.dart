@@ -24,7 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
 
   void signUp() async {
-    // ============================\
+    // ============================
     // VALIDASI
     // ============================
     if (emailController.text.isEmpty ||
@@ -49,11 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isLoading = true;
     });
 
-    // ========================================================
-    // INI ADALAH LOGIKA YANG DIPERBARUI
-    // ========================================================
     try {
-      // Panggil fungsi yang sudah di-update (yang ada signOut-nya)
       await _authService.signUpAdminAndStore(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
@@ -61,18 +57,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         storeName: storeNameController.text.trim(),
       );
 
-      // (BARU) Logika jika pendaftaran SUKSES
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Akun berhasil dibuat. Silakan login."),
           backgroundColor: Colors.green,
         ));
 
-        // Panggil fungsi toggle untuk kembali ke halaman login
         widget.onLoginTap?.call();
       }
     } catch (e) {
-      // Jika GAGAL, tampilkan error dan HENTIKAN loading
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text("Gagal mendaftar: ${e.toString()}"),
@@ -82,15 +75,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
     }
-    // Kita hapus 'finally' agar loading state di-handle di 'catch'
-    // ========================================================
-    // AKHIR DARI LOGIKA YANG DIPERBARUI
-    // ========================================================
   }
 
   @override
   Widget build(BuildContext context) {
-    // Kode UI build() tidak ada yang berubah
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -103,7 +91,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     const SizedBox(height: 50),
                     // Logo
-                    Container(
+                    SizedBox(
+                      // <-- Perbaikan: Mengganti Container dengan SizedBox
                       width: 150,
                       height: 150,
                       child: Image.asset(
@@ -120,14 +109,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 25),
 
-                    // Input Detail Toko
                     CustomTextField(
                       controller: storeNameController,
                       hintText: 'Nama Toko Anda',
                     ),
                     const SizedBox(height: 15),
-
-                    // Input Detail Admin
                     CustomTextField(
                       controller: usernameController,
                       hintText: 'Nama Lengkap (Owner)',
@@ -150,8 +136,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       obscureText: true,
                     ),
                     const SizedBox(height: 25),
-
-                    // Tombol Sign Up
                     CustomButton(
                       onTap: _isLoading ? null : signUp,
                       text: "Daftar & Mulai Trial 30 Hari",
@@ -184,12 +168,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
 
-              // ============================
               // LOADING OVERLAY
-              // ============================
               if (_isLoading)
                 Container(
-                  color: Colors.black.withOpacity(0.5),
+                  // Perbaikan: withOpacity -> withAlpha
+                  color: Colors.black.withAlpha(128),
                   child: const Center(
                     child: CircularProgressIndicator(color: Colors.white),
                   ),

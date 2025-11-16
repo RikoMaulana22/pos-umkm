@@ -456,17 +456,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 8),
         Text(
-            "Tambahkan varian seperti Ukuran (S, M, L) atau Rasa (Pedas, Original).",
-            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _variantNameCtrls.length,
-          itemBuilder: (context, index) {
-            return _buildVariantInputRow(index);
-          },
+          "Tambahkan varian seperti Ukuran (S, M, L) atau Rasa (Pedas, Original).",
+          style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
+        const SizedBox(height: 16),
+
+        // GANTI LISTVIEW → COLUMN
+        Column(
+          children: List.generate(
+            _variantNameCtrls.length,
+            (index) => _buildVariantInputRow(index),
+          ),
+        ),
+
         const SizedBox(height: 16),
         TextButton.icon(
           icon: const Icon(Icons.add, color: primaryColor),
