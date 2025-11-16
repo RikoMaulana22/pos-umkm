@@ -266,11 +266,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
           final item = cart.items[i];
           return ListTile(
             dense: true,
-            title: Text(item.product.name),
-            leading: Text("${item.quantity}x",
+            title: Text(item?.product?.name ?? 'Unknown Product'),
+            leading: Text("${item?.quantity ?? 0}x",
                 style: const TextStyle(fontWeight: FontWeight.bold)),
             trailing: Text(
-              formatCurrency.format(item.totalPrice),
+              formatCurrency.format(item?.totalPrice ?? 0.0),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           );

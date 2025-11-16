@@ -1,12 +1,13 @@
+// lib/features/inventory/screens/inventory_screen.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../services/inventory_service.dart';
 import '../models/product_model.dart';
+import '../services/inventory_service.dart';
+import '../../../shared/theme.dart';
 import 'add_product_screen.dart';
 import 'edit_product_screen.dart';
-import '../../../shared/theme.dart';
 import 'category_screen.dart';
 import 'stock_adjustment_screen.dart';
+import 'package:intl/intl.dart';
 
 // 1. IMPOR BARU UNTUK KATEGORI
 import '../models/category_model.dart';
@@ -23,15 +24,12 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   // 3. TAMBAHKAN STATE DAN SERVICE YANG DIPERLUKAN
-  final InventoryService inventoryService = InventoryService();
+  final InventoryService _inventoryService = InventoryService();
   final CategoryService _categoryService = CategoryService();
   String? _selectedCategoryId; // Untuk menyimpan filter yang aktif
 
-  final formatCurrency = NumberFormat.currency(
-    locale: 'id_ID',
-    symbol: 'Rp ',
-    decimalDigits: 0,
-  );
+  final formatCurrency =
+      NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
 
   @override
   Widget build(BuildContext context) {
@@ -41,19 +39,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.compare_arrows),
-            tooltip: "Penyesuaian Stok",
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      StockAdjustmentScreen(storeId: widget.storeId),
-                ),
-              );
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.category),
             tooltip: "Manajemen Kategori",
@@ -68,18 +53,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
         ],
       ),
-      // 4. UBAH BODY MENJADI COLUMN
       body: Column(
         children: [
-          // 5. TAMBAHKAN WIDGET FILTER KATEGORI DI SINI
+          // 4. TAMBAHKAN WIDGET FILTER KATEGORI
           _buildCategoryFilter(),
           const Divider(height: 1, thickness: 1),
 
-          // 6. BUNGKUS STREAMBUILDER DENGAN EXPANDED
+          // 5. BUNGKUS STREAMBUILDER DENGAN EXPANDED
           Expanded(
             child: StreamBuilder<List<Product>>(
-              // 7. HUBUNGKAN STREAM DENGAN FILTER
-              stream: inventoryService.getProducts(widget.storeId,
+              stream: _inventoryService.getProducts(widget.storeId,
                   categoryId: _selectedCategoryId),
               builder: (context, snapshot) {
                 // Loading state
@@ -101,12 +84,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
                     child: Text(
-                      // 8. BUAT PESAN LEBIH KONTEKSTUAL
                       _selectedCategoryId != null
                           ? "Tidak ada produk di kategori ini."
                           : "Belum ada produk.\nTekan tombol + untuk menambah produk.",
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   );
                 }
@@ -115,52 +97,82 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 final products = snapshot.data!;
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.only(
+                      bottom: 160), // Beri ruang untuk FAB
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
 
                     return Card(
-                      elevation: 2,
+                      elevation: 1,
                       margin: const EdgeInsets.symmetric(
-                          vertical: 6, horizontal: 8),
+                          vertical: 6, horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  EditProductScreen(product: product),
-                            ),
-                          );
-                        },
-                        leading: CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.grey[200],
-                          backgroundImage: (product.imageUrl != null &&
-                                  product.imageUrl!.isNotEmpty)
-                              ? NetworkImage(product.imageUrl!)
-                              : null,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        leading: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                            image: (product.imageUrl != null &&
+                                    product.imageUrl!.isNotEmpty)
+                                ? DecorationImage(
+                                    image: NetworkImage(product.imageUrl!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
                           child: (product.imageUrl == null ||
                                   product.imageUrl!.isEmpty)
-                              ? const Icon(Icons.inventory, color: Colors.grey)
+                              ? const Icon(Icons.inventory_2,
+                                  color: Colors.grey)
                               : null,
                         ),
                         title: Text(
                           product.name,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle: Text(
-                          "Kategori: ${product.categoryName ?? 'N/A'}\n"
-                          "Stok: ${product.stok} | Modal: ${formatCurrency.format(product.hargaModal)}",
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Kategori: ${product.categoryName ?? 'N/A'}",
+                            ),
+                            if (product.isVariantProduct)
+                              Text(
+                                "Stok: ${product.totalStok} (Bervarian)",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              )
+                            else
+                              Text(
+                                "Stok: ${product.totalStok} | Jual: ${formatCurrency.format(product.hargaJualFinal)}",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                          ],
                         ),
-                        trailing: Text(
-                          formatCurrency.format(product.hargaJual),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                        trailing: const Icon(Icons.edit, color: Colors.grey),
+
+                        // ===================================
+                        // PERBAIKAN ERROR ADA DI SINI
+                        // ===================================
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EditProductScreen(
+                                product: product,
+                                storeId: widget.storeId, // <-- TAMBAHKAN INI
+                              ),
+                            ),
+                          );
+                        },
+                        // ===================================
                       ),
                     );
                   },
@@ -170,24 +182,49 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // setelah menambah produk, refresh otomatis karena pakai StreamBuilder
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddProductScreen(storeId: widget.storeId),
-            ),
-          );
-        },
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
+      // 6. KEMBALIKAN MULTI FAB
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      AddProductScreen(storeId: widget.storeId),
+                ),
+              );
+            },
+            heroTag: 'addProduct',
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.add),
+            tooltip: "Tambah Produk",
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      StockAdjustmentScreen(storeId: widget.storeId),
+                ),
+              );
+            },
+            heroTag: 'adjustStock',
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.compare_arrows),
+            label: const Text("Penyesuaian Stok"),
+          ),
+        ],
       ),
     );
   }
 
-  // 9. TAMBAHKAN WIDGET BUILDER UNTUK FILTER (COPY DARI POS_SCREEN)
+  // 7. TAMBAHKAN WIDGET BUILDER UNTUK FILTER
   Widget _buildCategoryFilter() {
     return Container(
       height: 50,
@@ -236,7 +273,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // 10. TAMBAHKAN WIDGET BUILDER UNTUK CHIP (COPY DARI POS_SCREEN)
+  // 8. TAMBAHKAN WIDGET BUILDER UNTUK CHIP
   Widget _buildCategoryChip({
     required String label,
     required bool isSelected,

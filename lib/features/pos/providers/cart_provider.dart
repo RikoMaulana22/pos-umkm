@@ -1,71 +1,90 @@
 // lib/features/pos/providers/cart_provider.dart
-import 'package:flutter/material.dart';
-import '../models/cart_item_model.dart';
+import 'package:flutter/foundation.dart';
 import '../../inventory/models/product_model.dart';
+import '../models/cart_item_model.dart';
+// 1. IMPOR MODEL VARIAN
+import '../../inventory/models/product_variant_model.dart';
 
 class CartProvider with ChangeNotifier {
-  final List<CartItem> _items = [];
+  // 2. Kunci (String) sekarang adalah cartId (bukan lagi productId)
+  Map<String, CartItem> _items = {};
 
-  List<CartItem> get items => _items;
-  
-  int getQuantity(String productId) {
-    try {
-      return _items.firstWhere((item) => item.product.id == productId).quantity;
-    } catch (e) {
-      return 0; // Tidak ketemu artinya 0
-    }
-  }
+  Map<String, CartItem> get items => {..._items};
 
-  // Hitung total item di keranjang
   int get totalItems {
-    return _items.fold(0, (sum, item) => sum + item.quantity);
+    int total = 0;
+    _items.forEach((key, cartItem) {
+      total += cartItem.quantity;
+    });
+    return total;
   }
 
-  // Hitung total harga di keranjang
   double get totalPrice {
-    return _items.fold(0.0, (sum, item) => sum + item.totalPrice);
+    double total = 0.0;
+    _items.forEach((key, cartItem) {
+      total += cartItem.totalPrice;
+    });
+    return total;
   }
 
-  // Logika untuk menambah item ke keranjang
-  void addItem(Product product) {
-    // Cek apakah produk sudah ada di keranjang
-    for (var item in _items) {
-      if (item.product.id == product.id) {
-        // Cek apakah stok masih ada
-        if (item.quantity < product.stok) {
-          item.quantity++;
-          notifyListeners(); // Beri tahu UI untuk update
-        }
-        return; // Selesai
-      }
-    }
+  // 3. MODIFIKASI FUNGSI addItem
+  void addItem(Product product, [ProductVariant? variant]) {
+    // 4. Buat cartId unik
+    final cartId = product.id + (variant != null ? '_${variant.id}' : '');
 
-    // Jika produk belum ada di keranjang, tambahkan sebagai item baru
-    if (product.stok > 0) {
-      _items.add(CartItem(product: product, quantity: 1));
-      notifyListeners(); // Beri tahu UI untuk update
-    }
-  }
-
-  // Logika untuk mengurangi item dari keranjang
-  void decreaseItem(CartItem cartItem) {
-    if (cartItem.quantity > 1) {
-      cartItem.quantity--;
+    if (_items.containsKey(cartId)) {
+      // Jika sudah ada (misal: 2x Kopi Besar), tambah jumlahnya
+      _items.update(
+        cartId,
+        (existingItem) => CartItem(
+          product: existingItem.product,
+          variant: existingItem.variant,
+          quantity: existingItem.quantity + 1,
+        ),
+      );
     } else {
-      _items.remove(cartItem);
+      // Jika item baru, tambahkan ke keranjang
+      _items.putIfAbsent(
+        cartId,
+        () => CartItem(
+          product: product,
+          variant: variant,
+          quantity: 1,
+        ),
+      );
     }
     notifyListeners();
   }
 
-  // Logika untuk menghapus item dari keranjang
-  void removeItem(CartItem cartItem) {
-    _items.remove(cartItem);
+  // 5. MODIFIKASI FUNGSI decreaseItem
+  void decreaseItem(CartItem item) {
+    final cartId = item.cartId; // Gunakan cartId
+    if (!_items.containsKey(cartId)) return;
+
+    if (_items[cartId]!.quantity > 1) {
+      _items.update(
+        cartId,
+        (existingItem) => CartItem(
+          product: existingItem.product,
+          variant: existingItem.variant,
+          quantity: existingItem.quantity - 1,
+        ),
+      );
+    } else {
+      // Jika sisa 1, hapus
+      _items.remove(cartId);
+    }
     notifyListeners();
   }
 
-  // Mengosongkan keranjang
+  // 6. MODIFIKASI FUNGSI getQuantity
+  int getQuantity(Product product, [ProductVariant? variant]) {
+    final cartId = product.id + (variant != null ? '_${variant.id}' : '');
+    return _items[cartId]?.quantity ?? 0;
+  }
+
   void clearCart() {
-    _items.clear();
+    _items = {};
     notifyListeners();
   }
 }

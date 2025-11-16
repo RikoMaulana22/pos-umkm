@@ -1,13 +1,20 @@
 // lib/features/reports/services/pdf_export_service.dart
-import 'dart:io';
+import 'dart:typed_data'; // Tambahan
+import 'package:flutter/foundation.dart'; // Import baru untuk kIsWeb
 import 'package:flutter/services.dart';
 import 'package:open_file_plus/open_file_plus.dart';
-import 'package:path_provider/path_provider.dart';
+// import 'package:path_provider/path_provider.dart'; // Dihapus, dipindah ke helper
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:permission_handler/permission_handler.dart'; // Dihapus, dipindah ke helper
 import '../models/transaction_model.dart';
 import 'package:intl/intl.dart';
+
+// 1. IMPOR KONDISIONAL
+// Ini akan otomatis memilih file yang benar saat kompilasi
+import 'pdf_saver_stub.dart'
+    if (dart.library.io) 'pdf_saver_mobile.dart' // Untuk Android/iOS
+    if (dart.library.html) 'pdf_saver_web.dart'; // Untuk Web
 
 class PdfExportService {
   final formatCurrency =
@@ -21,17 +28,10 @@ class PdfExportService {
     required int totalTransactions,
     required int totalItemsSold,
   }) async {
-    // 1. Minta Izin Penyimpanan
-    var status = await Permission.storage.request();
-    if (!status.isGranted) {
-      throw Exception("Izin penyimpanan ditolak");
-    }
+    // 2. HAPUS SEMUA BLOK IZIN DARI SINI
+    // Logika izin sekarang ada di 'pdf_saver_mobile.dart'
 
     final pdf = pw.Document();
-
-    // (Opsional) Load font kustom jika perlu, atau biarkan default
-    // final font = pw.Font.ttf(await rootBundle.load("assets/fonts/OpenSans-Regular.ttf"));
-    // final boldFont = pw.Font.ttf(await rootBundle.load("assets/fonts/OpenSans-Bold.ttf"));
 
     pdf.addPage(
       pw.MultiPage(
@@ -52,29 +52,35 @@ class PdfExportService {
       ),
     );
 
-    // 2. Simpan File
-    final Directory? dir = await getExternalStorageDirectory();
-    if (dir == null) {
-      throw Exception("Gagal menemukan direktori penyimpanan.");
-    }
+    // 3. UBAH LOGIKA PENYIMPANAN
+    final Uint8List bytes = await pdf.save(); // Dapatkan bytes PDF
+    final String fileName =
+        'Laporan_Penjualan_${DateFormat('yyyy-MM-dd-HH-mm').format(DateTime.now())}.pdf';
 
-    final String path =
-        '${dir.path}/Laporan_Penjualan_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf';
-    final File file = File(path);
-    await file.writeAsBytes(await pdf.save());
+    // 4. PANGGIL HELPER KONDISIONAL
+    // 'savePdfFile' sekarang akan merujuk ke 'pdf_saver_mobile.dart' di HP
+    // atau 'pdf_saver_web.dart' di Web
+    final String? path = await savePdfFile(fileName: fileName, bytes: bytes);
 
     return path;
   }
 
   // Fungsi helper untuk membuka file
   Future<void> openPdfFile(String path) async {
+    // 5. PENGECEKAN kIsWeb
+    // Membuka file di web tidak dimungkinkan dari path,
+    // karena file sudah langsung di-download oleh browser.
+    if (kIsWeb) {
+      return;
+    }
+
     final result = await OpenFile.open(path);
     if (result.type != ResultType.done) {
       throw Exception("Gagal membuka file PDF: ${result.message}");
     }
   }
 
-  // --- WIDGET HELPER UNTUK PDF ---
+  // ... (Semua widget _buildHeader, _buildSummary, _summaryItem, _buildTransactionTable TIDAK BERUBAH) ...
 
   pw.Widget _buildHeader(pw.Context context) {
     return pw.Column(
@@ -155,7 +161,6 @@ class PdfExportService {
     final headers = ['Tanggal', 'Items', 'Metode', 'Total', 'Laba'];
 
     final data = transactions.map((tx) {
-      // Buat daftar item
       final itemsList = tx.items
           .map((item) => "${item.quantity}x ${item.productName}")
           .join('\n');

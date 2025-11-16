@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
 import '../screens/payment_screen.dart';
 import '../../../shared/theme.dart';
+// 1. IMPOR MODEL CART ITEM
+import '../models/cart_item_model.dart';
 
 class CartDetailsSheet extends StatelessWidget {
   final String storeId;
@@ -87,10 +89,27 @@ class CartDetailsSheet extends StatelessWidget {
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: cart.items.length,
+                    // 2. Gunakan cart.items.values
+                    itemCount: cart.items.values.length,
                     separatorBuilder: (context, index) => const Divider(),
                     itemBuilder: (context, index) {
-                      final cartItem = cart.items[index];
+                      // 3. Ambil CartItem dari values
+                      final CartItem cartItem =
+                          cart.items.values.toList()[index];
+
+                      // Tentukan nama dan harga yang akan ditampilkan
+                      String displayName = cartItem.product.name;
+                      double displayPrice = cartItem.product.hargaJualFinal;
+                      int displayStok = cartItem.product.totalStok;
+
+                      // 4. Jika ini produk bervarian, ganti nama & harganya
+                      if (cartItem.variant != null) {
+                        displayName =
+                            "${cartItem.product.name} - ${cartItem.variant!.name}";
+                        displayPrice = cartItem.variant!.hargaJualFinal;
+                        displayStok = cartItem.variant!.stok;
+                      }
+
                       return Row(
                         children: [
                           // Gambar produk
@@ -100,15 +119,16 @@ class CartDetailsSheet extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
-                              image: (cartItem.product.imageUrl != null)
+                              image: (cartItem.product.imageUrl != null &&
+                                      cartItem.product.imageUrl!.isNotEmpty)
                                   ? DecorationImage(
                                       image: NetworkImage(
                                           cartItem.product.imageUrl!),
-                                      fit: BoxFit.cover,
-                                    )
+                                      fit: BoxFit.cover)
                                   : null,
                             ),
-                            child: (cartItem.product.imageUrl == null)
+                            child: (cartItem.product.imageUrl == null ||
+                                    cartItem.product.imageUrl!.isEmpty)
                                 ? const Icon(Icons.inventory,
                                     color: Colors.grey)
                                 : null,
@@ -120,14 +140,15 @@ class CartDetailsSheet extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(cartItem.product.name,
+                                // 5. Tampilkan displayName
+                                Text(displayName,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16)),
                                 Text(
-                                  formatCurrency
-                                      .format(cartItem.product.hargaJual),
-                                  style: const TextStyle(color: primaryColor),
+                                  formatCurrency.format(
+                                      displayPrice), // Tampilkan harga varian/simpel
+                                  style: TextStyle(color: primaryColor),
                                 ),
                               ],
                             ),
@@ -155,16 +176,18 @@ class CartDetailsSheet extends StatelessWidget {
                                 IconButton(
                                   icon: const Icon(Icons.add, size: 18),
                                   onPressed: () {
-                                    if (cartItem.quantity <
-                                        cartItem.product.stok) {
-                                      cart.addItem(cartItem.product);
+                                    // 6. Cek stok varian/simpel
+                                    if (cartItem.quantity < displayStok) {
+                                      // Kirim item yang sama (dengan varian jika ada)
+                                      cart.addItem(
+                                          cartItem.product, cartItem.variant);
                                     } else {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(const SnackBar(
-                                        content:
-                                            Text("Stok maksimum tercapai!"),
-                                        duration: Duration(milliseconds: 500),
-                                      ));
+                                              content: Text(
+                                                  "Stok maksimum tercapai!"),
+                                              duration:
+                                                  Duration(milliseconds: 500)));
                                     }
                                   },
                                   color: primaryColor,
@@ -186,10 +209,9 @@ class CartDetailsSheet extends StatelessWidget {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5))
                 ],
               ),
               child: SafeArea(
@@ -203,10 +225,9 @@ class CartDetailsSheet extends StatelessWidget {
                         Text(
                           formatCurrency.format(cart.totalPrice),
                           style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor),
                         ),
                       ],
                     ),

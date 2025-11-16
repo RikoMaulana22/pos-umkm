@@ -5,12 +5,11 @@ import 'package:intl/intl.dart';
 import '../../../shared/theme.dart';
 import '../models/transaction_model.dart';
 import '../services/report_service.dart';
-// 1. IMPOR LAYANAN PDF BARU
 import '../services/pdf_export_service.dart';
 
 class ReportScreen extends StatefulWidget {
   final String storeId;
-  final String subscriptionPackage; // <-- Tambahan
+  final String subscriptionPackage;
 
   const ReportScreen({
     super.key,
@@ -24,27 +23,26 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   final ReportService _reportService = ReportService();
+  final PdfExportService _pdfExportService = PdfExportService();
 
   final formatCurrency =
       NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
   final formatDateTime = DateFormat('dd/MM/yyyy HH:mm');
-  // 2. INISIALISASI LAYANAN PDF
-  final PdfExportService _pdfExportService = PdfExportService();
 
   late Future<Map<String, Map<String, double>>> _salesDataFuture;
   int _selectedDays = 7;
 
-  bool _isSilverOrGold = false; // <-- Penanda fitur premium
-  bool _isExporting = false; // 3. STATE LOADING EXPORT
+  bool _isSilverOrGold = false;
+  bool _isGold = false;
+  bool _isExporting = false;
 
   @override
   void initState() {
     super.initState();
-
     _isSilverOrGold = widget.subscriptionPackage == "silver" ||
         widget.subscriptionPackage == "gold";
+    _isGold = widget.subscriptionPackage == "gold";
 
-    // Jika bronze, paksa filter ke 7 hari
     if (!_isSilverOrGold) {
       _selectedDays = 7;
     }
@@ -60,7 +58,7 @@ class _ReportScreenState extends State<ReportScreen> {
     });
   }
 
-  // 4. UBAH FUNGSI INI MENJADI LOGIKA EKSPOR
+  // Fungsi export PDF (tidak berubah)
   Future<void> _exportPdfReport(
     List<TransactionModel> transactions,
     double totalOmzet,
@@ -88,7 +86,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
       if (path != null && mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        // Tampilkan snackbar sukses dengan tombol "Buka"
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             duration: const Duration(seconds: 10),
@@ -101,7 +98,6 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
           ),
         );
-        // Buka file secara otomatis
         await _pdfExportService.openPdfFile(path);
       }
     } catch (e) {
@@ -126,36 +122,13 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Laporan"),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        actions: [
-          // 5. Kita perlu data dari StreamBuilder untuk export,
-          // jadi kita akan gunakan "builder" AppBar di bawah.
-          // Tombol-tombol ini adalah placeholder sementara.
-          if (_isSilverOrGold)
-            IconButton(
-              icon: const Icon(Icons.download),
-              tooltip: "Export Laporan",
-              onPressed: () {
-                // Aksi akan ditangani oleh AppBar di dalam StreamBuilder
-              },
-            ),
-          PopupMenuButton<int>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              _selectedDays = value;
-              _refreshData();
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 7, child: Text("7 Hari Terakhir")),
-              if (_isSilverOrGold)
-                const PopupMenuItem(value: 30, child: Text("30 Hari Terakhir")),
-            ],
-          ),
-        ],
-      ),
+      // ===========================================
+      // PERBAIKAN: HAPUS AppBar DARI SINI
+      // ===========================================
+      // appBar: AppBar(
+      //   title: const Text("Laporan"),
+      //   ...
+      // ),
 
       // STREAM transaksi realtime
       body: StreamBuilder<List<TransactionModel>>(
@@ -167,7 +140,14 @@ class _ReportScreenState extends State<ReportScreen> {
           if (!snapshot.hasData ||
               snapshot.data == null ||
               snapshot.data!.isEmpty) {
-            return const Center(child: Text("Belum ada data transaksi."));
+            // Kita tetap perlu AppBar meski data kosong
+            return Scaffold(
+                appBar: AppBar(
+                  title: const Text("Laporan"),
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+                body: const Center(child: Text("Belum ada data transaksi.")));
           }
 
           final transactions = snapshot.data!;
@@ -177,24 +157,52 @@ class _ReportScreenState extends State<ReportScreen> {
           double totalProfit = 0;
           int totalItems = 0;
 
+          // LOGIKA ANALITIK GOLD
+          Map<String, int> productSales = {};
+          Map<int, int> hourlySales = Map.fromIterable(
+            List.generate(24, (i) => i),
+            key: (hour) => hour,
+            value: (hour) => 0,
+          );
+
           for (var tx in transactions) {
+            // Summary
             totalOmzet += tx.totalPrice;
             totalProfit += tx.totalProfit;
             totalItems += tx.totalItems;
+
+            if (_isGold) {
+              // --- Logika Jam Ramai ---
+              int hour = tx.timestamp.toDate().hour;
+              hourlySales.update(
+                  hour, (value) => value + 1, // Hitung jumlah transaksi
+                  ifAbsent: () => 1);
+
+              // --- Logika Produk Terlaris ---
+              for (var item in tx.items) {
+                productSales.update(
+                  item.productName,
+                  (value) => value + item.quantity,
+                  ifAbsent: () => item.quantity,
+                );
+              }
+            }
           }
 
-          // ================================
-          // 6. HAPUS LOGIKA PRODUK TERLARIS
+          // Urutkan map produk
+          final sortedProducts = productSales.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+          final top5Products = sortedProducts.take(5).toList();
+
           // ================================
 
           return Scaffold(
-            // 7. GUNAKAN APPBAR BARU DI SINI
-            // Ini memungkinkan tombol Export mengakses data 'transactions'
+            // Ini adalah AppBar YANG BENAR (di dalam StreamBuilder)
             appBar: AppBar(
               title: const Text("Laporan"),
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
-              automaticallyImplyLeading: false,
+              // automaticallyImplyLeading: false, // Hapus ini agar tombol back muncul
               actions: [
                 if (_isSilverOrGold)
                   IconButton(
@@ -212,7 +220,6 @@ class _ReportScreenState extends State<ReportScreen> {
                     onPressed: _isExporting
                         ? null
                         : () {
-                            // Panggil fungsi ekspor dengan data yang sudah siap
                             _exportPdfReport(
                               transactions,
                               totalOmzet,
@@ -242,9 +249,7 @@ class _ReportScreenState extends State<ReportScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ===========================
                   // SUMMARY CARD
-                  // ===========================
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -284,9 +289,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
 
-                  // ===========================
                   // GRAFIK
-                  // ===========================
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     child: Text(
@@ -297,7 +300,6 @@ class _ReportScreenState extends State<ReportScreen> {
                           color: primaryColor),
                     ),
                   ),
-
                   SizedBox(
                     height: 220,
                     child: FutureBuilder(
@@ -330,8 +332,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               bottomTitles: AxisTitles(
                                 sideTitles: SideTitles(
                                   showTitles: true,
-                                  interval: (_selectedDays / 7)
-                                      .ceilToDouble(), // Perbaikan interval
+                                  interval: (_selectedDays / 7).ceilToDouble(),
                                   getTitlesWidget: (value, meta) {
                                     if (value.toInt() >= 0 &&
                                         value.toInt() < dates.length) {
@@ -386,11 +387,8 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
 
-                  const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
-
-                  // ===========================
                   // RIWAYAT TRANSAKSI
-                  // ===========================
+                  const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: Text(
@@ -399,7 +397,6 @@ class _ReportScreenState extends State<ReportScreen> {
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
-
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -436,6 +433,10 @@ class _ReportScreenState extends State<ReportScreen> {
                       );
                     },
                   ),
+
+                  // TAMPILKAN ANALITIK GOLD
+                  if (_isGold) _buildGoldAnalytics(top5Products, hourlySales),
+
                   const SizedBox(height: 40),
                 ],
               ),
@@ -446,9 +447,150 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // ===========================
-  // WIDGET KARTU RINGKASAN
-  // ===========================
+  // WIDGET ANALITIK GOLD
+  Widget _buildGoldAnalytics(
+    List<MapEntry<String, int>> topProducts,
+    Map<int, int> hourlySales,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // --- PRODUK TERLARIS ---
+        const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            children: [
+              Icon(Icons.star_rate_rounded, color: Colors.amber[800]),
+              const SizedBox(width: 8),
+              Text(
+                "Analitik Gold: Produk Terlaris",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber[900]),
+              ),
+            ],
+          ),
+        ),
+        if (topProducts.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text("Data penjualan belum cukup.",
+                style: TextStyle(color: Colors.grey)),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: topProducts.length,
+            itemBuilder: (context, index) {
+              final item = topProducts[index];
+              return Card(
+                elevation: 0,
+                color: Colors.amber[50],
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.amber[100],
+                    child: Text(
+                      "${index + 1}",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber[900]),
+                    ),
+                  ),
+                  title: Text(item.key,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  trailing: Text(
+                    "${item.value}x Terjual",
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              );
+            },
+          ),
+
+        // --- JAM RAMAI ---
+        const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            children: [
+              Icon(Icons.access_time_filled_rounded, color: Colors.blue[800]),
+              const SizedBox(width: 8),
+              Text(
+                "Analitik Gold: Jam Ramai",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[900]),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 200,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        // Tampilkan label jam setiap 6 jam
+                        if (value % 6 == 0) {
+                          return Text("${value.toInt()}:00",
+                              style: const TextStyle(fontSize: 10));
+                        }
+                        return const Text("");
+                      },
+                      reservedSize: 22,
+                    ),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey[200]!,
+                    strokeWidth: 1,
+                  ),
+                ),
+                barGroups: hourlySales.entries.map((entry) {
+                  return BarChartGroupData(
+                    x: entry.key, // Jam (0-23)
+                    barRods: [
+                      BarChartRodData(
+                        toY: entry.value.toDouble(), // Jumlah transaksi
+                        color: primaryColor,
+                        width: 10,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // WIDGET KARTU RINGKASAN (tidak berubah)
   Widget _buildSummaryCard(
       String title, String value, IconData icon, Color color) {
     return Expanded(

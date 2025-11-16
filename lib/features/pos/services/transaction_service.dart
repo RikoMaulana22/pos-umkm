@@ -23,7 +23,8 @@ class TransactionService {
     DocumentReference transactionDoc = _firestore.collection('transactions').doc();
 
     // Siapkan data item untuk disimpan
-    List<Map<String, dynamic>> itemsData = cart.items.map((item) {
+    List<Map<String, dynamic>> itemsData = cart.items.entries.map((entry) {
+      final item = entry.value;
       return {
         'productId': item.product.id,
         'productName': item.product.name,
@@ -44,7 +45,7 @@ class TransactionService {
     });
 
     // 2. Kurangi stok setiap produk di keranjang
-    for (var item in cart.items) {
+    for (var item in cart.items.values) {
       DocumentReference productDoc =
           _firestore.collection('products').doc(item.product.id);
       

@@ -25,8 +25,9 @@ class TransactionService {
         _firestore.collection('transactions').doc();
 
     // 4. UBAH Logika penyimpanan item
-    List<Map<String, dynamic>> itemsData = cart.items.map((item) {
+    List<Map<String, dynamic>> itemsData = cart.items.entries.map((entry) {
       // Buat model item transaksi
+      final item = entry.value;
       final transactionItem = TransactionItemModel(
         productId: item.product.id!,
         productName: item.product.name,
@@ -51,7 +52,7 @@ class TransactionService {
     });
 
     // 2. Kurangi stok (Tidak berubah)
-    for (var item in cart.items) {
+    for (var item in cart.items.values) {
       DocumentReference productDoc =
           _firestore.collection('products').doc(item.product.id);
 

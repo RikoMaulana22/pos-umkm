@@ -32,13 +32,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final TextEditingController diskonController = TextEditingController();
   final TextEditingController skuController = TextEditingController();
 
-  // --- Kontroler Produk Varian ---
+  // ==========================================================
+  // 2. STATE BARU UNTUK VARIAN (MENGGUNAKAN CONTROLLER)
+  // ==========================================================
   final List<TextEditingController> _variantNameCtrls = [];
   final List<TextEditingController> _variantModalCtrls = [];
   final List<TextEditingController> _variantJualCtrls = [];
   final List<TextEditingController> _variantStokCtrls = [];
+  // (Anda bisa tambahkan _variantDiskonCtrls dan _variantSkuCtrls di sini jika mau)
 
-  bool _isVariantProduct = false;
+  bool _isVariantProduct = false; // Penanda tipe produk
 
   Uint8List? _imageBytes;
   String? _imageName;
@@ -51,9 +54,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
   void initState() {
     super.initState();
     _categoryStream = _categoryService.getCategories(widget.storeId);
-    _addNewVariantRow(); // Siapkan 1 baris controller
+    _addNewVariantRow(); // 3. Langsung siapkan 1 baris controller
   }
 
+  // 4. BERSIHKAN CONTROLLER SAAT KELUAR
   @override
   void dispose() {
     nameController.dispose();
@@ -73,6 +77,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     super.dispose();
   }
 
+  // 5. FUNGSI UNTUK MENAMBAH CONTROLLER BARU
   void _addNewVariantRow() {
     setState(() {
       _variantNameCtrls.add(TextEditingController());
@@ -82,8 +87,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     });
   }
 
+  // 6. FUNGSI UNTUK MENGHAPUS CONTROLLER
   void _removeVariantRow(int index) {
     setState(() {
+      // Hapus controller dari list
       _variantNameCtrls[index].dispose();
       _variantModalCtrls[index].dispose();
       _variantJualCtrls[index].dispose();
@@ -114,7 +121,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     try {
       if (_isVariantProduct) {
-        // === LOGIKA SIMPAN PRODUK BERVARIAN ===
+        // ===========================================
+        // 7. LOGIKA BARU SIMPAN PRODUK BERVARIAN
+        // ===========================================
+
+        // Buat list varian DARI CONTROLLER
         List<ProductVariant> variantsList = [];
 
         if (_variantNameCtrls.isEmpty) {
@@ -142,6 +153,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             hargaModal: modal,
             hargaJual: jual,
             stok: stok,
+            // (Anda bisa tambahkan diskon/sku di sini jika menambah controller-nya)
           ));
         }
 
@@ -153,10 +165,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
           imageBytes: _imageBytes,
           imageName: _imageName,
           isVariantProduct: true,
-          variants: variantsList,
+          variants: variantsList, // Kirim list varian yang baru dibuat
         );
       } else {
-        // === LOGIKA SIMPAN PRODUK SIMPEL ===
+        // === LOGIKA SIMPAN PRODUK SIMPEL (Tidak Berubah) ===
         if (modalController.text.isEmpty ||
             jualController.text.isEmpty ||
             stokController.text.isEmpty) {
@@ -261,9 +273,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
 
-                // ===========================================
-                // PERBAIKAN OVERFLOW ADA DI SINI
-                // ===========================================
                 ToggleButtons(
                   isSelected: [
                     _isVariantProduct == false,
@@ -279,9 +288,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   fillColor: primaryColor,
                   color: primaryColor,
                   constraints: BoxConstraints(
-                      // Menggunakan padding halaman (24*2=48) dan 4px spasi
+                      // Menggunakan padding halaman (24*2=48) dan 6px spasi
                       minWidth:
-                          (MediaQuery.of(context).size.width - 48 - 4) / 2,
+                          (MediaQuery.of(context).size.width - 48 - 6) / 2,
                       minHeight: 40),
                   children: const [
                     Center(
@@ -300,10 +309,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                   ],
                 ),
-                // ===========================================
-                // AKHIR DARI PERBAIKAN
-                // ===========================================
-
                 const SizedBox(height: 24),
 
                 // TAMPILKAN FORM SESUAI TIPE
@@ -473,7 +478,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // WIDGET BARIS VARIAN (tidak berubah)
+  // ==========================================================
+  // 10. (PERBAIKAN OVERFLOW) WIDGET BARIS VARIAN
+  // ==========================================================
   Widget _buildVariantInputRow(int index) {
     // Helper kecil untuk input formatter angka
     final numberFormatter = [

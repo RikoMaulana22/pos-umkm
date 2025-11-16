@@ -10,8 +10,9 @@ import '../pos/screens/pos_screen.dart';
 import '../inventory/screens/inventory_screen.dart';
 import '../reports/screens/report_screen.dart';
 import '../settings/screens/settings_screen.dart';
-// 1. IMPOR LAYAR BARU
 import '../admin/screens/manage_cashier_screen.dart';
+// 1. IMPOR WIDGET BARU
+import 'widgets/low_stock_alert_widget.dart';
 
 class HomeScreen extends StatelessWidget {
   final String storeId;
@@ -42,7 +43,7 @@ class HomeScreen extends StatelessWidget {
       body: Column(
         children: [
           // Header Kustom (Tidak berubah)
-          Container(
+          SizedBox(
             height: 150,
             width: double.infinity,
             child: Stack(
@@ -99,6 +100,7 @@ class HomeScreen extends StatelessWidget {
           Expanded(
             child: Stack(
               children: [
+                // (Dekorasi background tidak berubah)
                 Positioned(
                   bottom: -80,
                   right: -80,
@@ -113,58 +115,68 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                Padding(
+
+                // 2. UBAH Padding MENJADI ListView
+                ListView(
                   padding: const EdgeInsets.all(16.0),
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.1,
-                    children: [
-                      DashboardButton(
-                        label: "Transaksi (Kasir)",
-                        icon: Icons.point_of_sale,
-                        onTap: () => _goTo(
-                            context,
-                            PosScreen(
-                                storeId: storeId,
-                                subscriptionPackage: subscriptionPackage)),
-                      ),
-                      DashboardButton(
-                        label: "Produk (Inventaris)",
-                        icon: Icons.inventory_2,
-                        onTap: () =>
-                            _goTo(context, InventoryScreen(storeId: storeId)),
-                      ),
-                      DashboardButton(
-                        label: "Laporan",
-                        icon: Icons.bar_chart,
-                        // ===========================================
-                        // MODIFIKASI DI SINI
-                        // ===========================================
-                        onTap: () => _goTo(
-                            context,
-                            ReportScreen(
-                                storeId: storeId,
-                                subscriptionPackage: subscriptionPackage)),
-                      ),
-                      DashboardButton(
-                        label: "Pengaturan",
-                        icon: Icons.settings,
-                        onTap: () =>
-                            _goTo(context, SettingsScreen(storeId: storeId)),
-                      ),
-                      if (isSilverOrGold)
+                  children: [
+                    // 3. TAMPILKAN WIDGET STOK JIKA SILVER/GOLD
+                    if (isSilverOrGold)
+                      LowStockAlertWidget(
+                          storeId: storeId, lowStockThreshold: 5),
+
+                    // 4. GridView sekarang di dalam ListView
+                    GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 1.1,
+                      shrinkWrap: true, // Wajib di dalam ListView
+                      physics:
+                          const NeverScrollableScrollPhysics(), // Wajib di dalam ListView
+                      children: [
                         DashboardButton(
-                          label: "Manajemen Kasir",
-                          icon: Icons.person_add,
-                          onTap: () {
-                            _goTo(
-                                context, ManageCashierScreen(storeId: storeId));
-                          },
+                          label: "Transaksi (Kasir)",
+                          icon: Icons.point_of_sale,
+                          onTap: () => _goTo(
+                              context,
+                              PosScreen(
+                                  storeId: storeId,
+                                  subscriptionPackage: subscriptionPackage)),
                         ),
-                    ],
-                  ),
+                        DashboardButton(
+                          label: "Produk (Inventaris)",
+                          icon: Icons.inventory_2,
+                          onTap: () =>
+                              _goTo(context, InventoryScreen(storeId: storeId)),
+                        ),
+                        DashboardButton(
+                          label: "Laporan",
+                          icon: Icons.bar_chart,
+                          onTap: () => _goTo(
+                              context,
+                              ReportScreen(
+                                  storeId: storeId,
+                                  subscriptionPackage: subscriptionPackage)),
+                        ),
+                        DashboardButton(
+                          label: "Pengaturan",
+                          icon: Icons.settings,
+                          onTap: () =>
+                              _goTo(context, SettingsScreen(storeId: storeId)),
+                        ),
+                        if (isSilverOrGold)
+                          DashboardButton(
+                            label: "Manajemen Kasir",
+                            icon: Icons.person_add,
+                            onTap: () {
+                              _goTo(context,
+                                  ManageCashierScreen(storeId: storeId));
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
