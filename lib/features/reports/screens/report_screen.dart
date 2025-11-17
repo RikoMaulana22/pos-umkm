@@ -1,3 +1,4 @@
+// lib/features/reports/screens/report_screen.dart
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -33,7 +34,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
   late Future<Map<String, Map<String, double>>> _salesDataFuture;
   int _selectedDays = 7;
-
   bool _isSilverOrGold = false;
   bool _isGold = false;
   bool _isExporting = false;
@@ -51,9 +51,7 @@ class _ReportScreenState extends State<ReportScreen> {
       _selectedDays = 7;
     }
 
-    // Migration - comment setelah berhasil
     _runMigrationOnce();
-
     _refreshData();
   }
 
@@ -87,8 +85,17 @@ class _ReportScreenState extends State<ReportScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text(message)),
+            ],
+          ),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
@@ -105,13 +112,26 @@ class _ReportScreenState extends State<ReportScreen> {
       return;
     }
 
-    setState(() {
-      _isExporting = true;
-    });
+    setState(() => _isExporting = true);
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Membuat laporan PDF..."),
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text("Membuat laporan PDF..."),
+          ],
+        ),
         backgroundColor: Colors.blue,
+        duration: const Duration(minutes: 2),
       ),
     );
 
@@ -128,23 +148,18 @@ class _ReportScreenState extends State<ReportScreen> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            duration: const Duration(seconds: 10),
-            content: Text("Laporan berhasil disimpan: $path"),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text("Laporan disimpan")),
+              ],
+            ),
+            backgroundColor: Colors.green,
             action: SnackBarAction(
               label: "Buka",
-              onPressed: () {
-                _pdfExportService.openPdfFile(path);
-              },
+              onPressed: () => _pdfExportService.openPdfFile(path),
             ),
-          ),
-        );
-        await _pdfExportService.openPdfFile(path);
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Laporan PDF berhasil di-download."),
-            backgroundColor: Colors.green,
           ),
         );
       }
@@ -152,9 +167,7 @@ class _ReportScreenState extends State<ReportScreen> {
       _showError("Gagal export PDF: ${e.toString()}");
     } finally {
       if (mounted) {
-        setState(() {
-          _isExporting = false;
-        });
+        setState(() => _isExporting = false);
       }
     }
   }
@@ -162,6 +175,7 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       body: StreamBuilder<List<TransactionModel>>(
         stream: _reportService.getTransactions(
           widget.storeId,
@@ -172,11 +186,24 @@ class _ReportScreenState extends State<ReportScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Scaffold(
               appBar: AppBar(
-                title: const Text("Laporan"),
+                title: const Text("📊 Laporan"),
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
+                elevation: 0,
               ),
-              body: const Center(child: CircularProgressIndicator()),
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: primaryColor),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Memuat laporan...',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
             );
           }
 
@@ -186,26 +213,29 @@ class _ReportScreenState extends State<ReportScreen> {
                 title: const Text("Error"),
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
+                elevation: 0,
               ),
               body: Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline,
-                          size: 60, color: Colors.red),
-                      const SizedBox(height: 16),
+                      Icon(Icons.error_outline,
+                          size: 80, color: Colors.red[300]),
+                      const SizedBox(height: 20),
                       const Text(
-                        "Error Memuat Transaksi",
+                        "Error Memuat Laporan",
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Text(
                         "${snapshot.error}",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.red[700]),
+                        style: TextStyle(color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
@@ -217,7 +247,14 @@ class _ReportScreenState extends State<ReportScreen> {
                           });
                         },
                         icon: const Icon(Icons.refresh),
-                        label: const Text("Reset Filter & Coba Lagi"),
+                        label: const Text("Muat Ulang"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -265,53 +302,74 @@ class _ReportScreenState extends State<ReportScreen> {
           final top5Products = sortedProducts.take(5).toList();
 
           return Scaffold(
+            backgroundColor: Colors.grey[50],
             appBar: AppBar(
-              title: Text("Laporan ${_selectedDays} Hari"),
+              title: const Text('📊 Laporan'),
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
+              elevation: 0,
               actions: [
                 if (_isSilverOrGold)
-                  IconButton(
-                    icon: _isExporting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.download),
-                    tooltip: "Export Laporan (PDF)",
-                    onPressed: _isExporting
-                        ? null
-                        : () {
-                            _exportPdfReport(
-                              transactions,
-                              totalOmzet,
-                              totalProfit,
-                              totalItems,
-                            );
-                          },
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      icon: _isExporting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.download_rounded),
+                      tooltip: "Export PDF",
+                      onPressed: _isExporting
+                          ? null
+                          : () {
+                              _exportPdfReport(
+                                transactions,
+                                totalOmzet,
+                                totalProfit,
+                                totalItems,
+                              );
+                            },
+                    ),
                   ),
                 PopupMenuButton<int>(
-                  icon: const Icon(Icons.filter_list),
+                  icon: const Icon(Icons.calendar_today_rounded),
                   tooltip: "Filter Tanggal",
-                  onSelected: (value) {
-                    setState(() {
-                      _selectedDays = value;
-                    });
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      _refreshData();
-                    });
-                  },
                   itemBuilder: (context) => [
                     const PopupMenuItem(
-                        value: 7, child: Text("7 Hari Terakhir")),
+                      value: 7,
+                      child: Row(
+                        children: [
+                          Icon(Icons.date_range, size: 20),
+                          SizedBox(width: 8),
+                          Text("7 Hari"),
+                        ],
+                      ),
+                    ),
                     if (_isSilverOrGold)
                       const PopupMenuItem(
-                          value: 30, child: Text("30 Hari Terakhir")),
+                        value: 30,
+                        child: Row(
+                          children: [
+                            Icon(Icons.date_range, size: 20),
+                            SizedBox(width: 8),
+                            Text("30 Hari"),
+                          ],
+                        ),
+                      ),
                   ],
+                  onSelected: (value) {
+                    setState(() => _selectedDays = value);
+                    _refreshData();
+                  },
                 ),
               ],
             ),
@@ -319,268 +377,455 @@ class _ReportScreenState extends State<ReportScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_isGold) _buildUserFilterWidget(),
-
-                  // Indikator filter sederhana (tanpa nested StreamBuilder)
-                  if (_selectedUserId != null)
-                    Container(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue[200]!),
+                  // ✨ Header dengan Gradient
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [primaryColor, primaryColor.withOpacity(0.8)],
                       ),
-                      child: Row(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(24),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.filter_alt,
-                              color: Colors.blue[700], size: 20),
-                          const SizedBox(width: 8),
-                          const Expanded(
+                          // Period Info
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                             child: Text(
-                              "Filter kasir aktif",
-                              style: TextStyle(
-                                color: Colors.blue,
+                              'Periode: $_selectedDays hari terakhir',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 18),
-                            onPressed: () {
-                              setState(() {
-                                _selectedUserId = null;
-                              });
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                _refreshData();
-                              });
-                            },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                          const SizedBox(height: 4),
+                          // Title
+                          Text(
+                            'Ringkasan Penjualan',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ],
                       ),
                     ),
+                  ),
 
+                  // ✨ User Filter (Gold only)
+                  if (_isGold) ...[
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildUserFilterWidget(),
+                    ),
+                  ],
+
+                  // ✨ Filter Indicator
+                  if (_selectedUserId != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.filter_alt_rounded,
+                                color: Colors.blue[700], size: 20),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                "Filter kasir aktif",
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () {
+                                setState(() => _selectedUserId = null);
+                                _refreshData();
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // ✨ Summary Cards
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
                         Row(
                           children: [
-                            _buildSummaryCard(
-                                "Total Omzet",
-                                formatCurrency.format(totalOmzet),
-                                Icons.monetization_on,
-                                Colors.blue),
+                            _buildModernSummaryCard(
+                              title: "Total Omzet",
+                              value: formatCurrency.format(totalOmzet),
+                              icon: Icons.trending_up_rounded,
+                              color: Colors.blue,
+                            ),
                             const SizedBox(width: 12),
-                            _buildSummaryCard(
-                                "Total Laba",
-                                formatCurrency.format(totalProfit),
-                                Icons.trending_up,
-                                Colors.green),
+                            _buildModernSummaryCard(
+                              title: "Total Laba",
+                              value: formatCurrency.format(totalProfit),
+                              icon: Icons.money_rounded,
+                              color: Colors.green,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            _buildSummaryCard(
-                                "Transaksi",
-                                transactions.length.toString(),
-                                Icons.receipt_long,
-                                Colors.orange),
+                            _buildModernSummaryCard(
+                              title: "Transaksi",
+                              value: transactions.length.toString(),
+                              icon: Icons.receipt_rounded,
+                              color: Colors.orange,
+                            ),
                             const SizedBox(width: 12),
-                            _buildSummaryCard(
-                                "Item Terjual",
-                                totalItems.toString(),
-                                Icons.shopping_bag,
-                                Colors.purple),
+                            _buildModernSummaryCard(
+                              title: "Item Terjual",
+                              value: totalItems.toString(),
+                              icon: Icons.shopping_bag_rounded,
+                              color: Colors.purple,
+                            ),
                           ],
                         ),
                       ],
                     ),
                   ),
+
+                  // ✨ Sales Chart
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Text(
-                      "Grafik Penjualan Toko $_selectedDays Hari Terakhir",
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 220,
-                    child: FutureBuilder(
-                      future: _salesDataFuture,
-                      builder: (context,
-                          AsyncSnapshot<Map<String, Map<String, double>>>
-                              snap) {
-                        if (snap.connectionState == ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-
-                        if (snap.hasError) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Text("Error: ${snap.error}"),
-                            ),
-                          );
-                        }
-
-                        final salesData = snap.data!;
-                        final dates = salesData.keys.toList();
-
-                        if (dates.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              "Tidak ada data untuk ditampilkan",
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          );
-                        }
-
-                        final salesSpots = <FlSpot>[];
-                        final profitSpots = <FlSpot>[];
-
-                        for (int i = 0; i < dates.length; i++) {
-                          salesSpots.add(FlSpot(
-                              i.toDouble(), salesData[dates[i]]!["sales"]!));
-                          profitSpots.add(FlSpot(
-                              i.toDouble(), salesData[dates[i]]!["profit"]!));
-                        }
-
-                        return LineChart(
-                          LineChartData(
-                            gridData: FlGridData(show: false),
-                            titlesData: FlTitlesData(
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  interval: (_selectedDays / 7).ceilToDouble(),
-                                  getTitlesWidget: (value, meta) {
-                                    if (value.toInt() >= 0 &&
-                                        value.toInt() < dates.length) {
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 8.0),
-                                        child: Text(dates[value.toInt()],
-                                            style:
-                                                const TextStyle(fontSize: 10)),
-                                      );
-                                    }
-                                    return const SizedBox.shrink();
-                                  },
-                                  reservedSize: 22,
-                                ),
-                              ),
-                              leftTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
-                              topTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false)),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: salesSpots,
-                                isCurved: true,
-                                color: Colors.blue,
-                                barWidth: 3,
-                                dotData: FlDotData(show: _selectedDays <= 7),
-                                belowBarData: BarAreaData(
-                                  show: true,
-                                  color: Colors.blue.withOpacity(.15),
-                                ),
-                              ),
-                              LineChartBarData(
-                                spots: profitSpots,
-                                isCurved: true,
-                                color: Colors.green,
-                                barWidth: 3,
-                                dotData: FlDotData(show: _selectedDays <= 7),
-                                belowBarData: BarAreaData(
-                                  show: true,
-                                  color: Colors.green.withOpacity(.15),
-                                ),
-                              ),
-                            ],
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Grafik Penjualan & Laba',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                  const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Text(
-                      "Riwayat Transaksi Terbaru",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  if (transactions.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Center(
-                        child: Column(
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
+                          child: SizedBox(
+                            height: 280,
+                            child: FutureBuilder(
+                              future: _salesDataFuture,
+                              builder: (context,
+                                  AsyncSnapshot<
+                                          Map<String, Map<String, double>>>
+                                      snap) {
+                                if (snap.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      color: primaryColor,
+                                    ),
+                                  );
+                                }
+
+                                if (snap.hasError) {
+                                  return Center(
+                                    child: Text("Error: ${snap.error}"),
+                                  );
+                                }
+
+                                final salesData = snap.data!;
+                                final dates = salesData.keys.toList();
+
+                                if (dates.isEmpty) {
+                                  return Center(
+                                    child: Text(
+                                      "Tidak ada data",
+                                      style: TextStyle(
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                final salesSpots = <FlSpot>[];
+                                final profitSpots = <FlSpot>[];
+
+                                for (int i = 0; i < dates.length; i++) {
+                                  salesSpots.add(FlSpot(i.toDouble(),
+                                      salesData[dates[i]]!["sales"]!));
+                                  profitSpots.add(FlSpot(i.toDouble(),
+                                      salesData[dates[i]]!["profit"]!));
+                                }
+
+                                return LineChart(
+                                  LineChartData(
+                                    gridData: FlGridData(
+                                      show: true,
+                                      drawVerticalLine: false,
+                                      getDrawingHorizontalLine: (value) =>
+                                          FlLine(
+                                        color: Colors.grey[200]!,
+                                        strokeWidth: 1,
+                                      ),
+                                    ),
+                                    titlesData: FlTitlesData(
+                                      bottomTitles: AxisTitles(
+                                        sideTitles: SideTitles(
+                                          showTitles: true,
+                                          interval: (_selectedDays / 7)
+                                              .ceilToDouble(),
+                                          getTitlesWidget: (value, meta) {
+                                            if (value.toInt() >= 0 &&
+                                                value.toInt() < dates.length) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 8,
+                                                ),
+                                                child: Text(
+                                                  dates[value.toInt()],
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                            return const SizedBox.shrink();
+                                          },
+                                          reservedSize: 30,
+                                        ),
+                                      ),
+                                      leftTitles: const AxisTitles(
+                                        sideTitles:
+                                            SideTitles(showTitles: false),
+                                      ),
+                                      topTitles: const AxisTitles(
+                                        sideTitles:
+                                            SideTitles(showTitles: false),
+                                      ),
+                                      rightTitles: const AxisTitles(
+                                        sideTitles:
+                                            SideTitles(showTitles: false),
+                                      ),
+                                    ),
+                                    borderData: FlBorderData(show: false),
+                                    lineBarsData: [
+                                      LineChartBarData(
+                                        spots: salesSpots,
+                                        isCurved: true,
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.blue,
+                                            Colors.blue.withOpacity(0.5)
+                                          ],
+                                        ),
+                                        barWidth: 3,
+                                        dotData: FlDotData(
+                                          show: _selectedDays <= 7,
+                                        ),
+                                        belowBarData: BarAreaData(
+                                          show: true,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.blue.withOpacity(0.2),
+                                              Colors.blue.withOpacity(0.01),
+                                            ],
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                          ),
+                                        ),
+                                      ),
+                                      LineChartBarData(
+                                        spots: profitSpots,
+                                        isCurved: true,
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.green,
+                                            Colors.green.withOpacity(0.5)
+                                          ],
+                                        ),
+                                        barWidth: 3,
+                                        dotData: FlDotData(
+                                          show: _selectedDays <= 7,
+                                        ),
+                                        belowBarData: BarAreaData(
+                                          show: true,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.green.withOpacity(0.2),
+                                              Colors.green.withOpacity(0.01),
+                                            ],
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
                           children: [
-                            Icon(Icons.receipt_long_outlined,
-                                size: 60, color: Colors.grey[400]),
-                            const SizedBox(height: 8),
-                            Text(
-                              "Tidak ada transaksi untuk filter ini.",
-                              style: TextStyle(color: Colors.grey[600]),
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Penjualan',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(width: 16),
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Laba',
+                              style: TextStyle(fontSize: 12),
                             ),
                           ],
                         ),
-                      ),
-                    )
-                  else
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount:
-                          transactions.length > 10 ? 10 : transactions.length,
-                      separatorBuilder: (context, index) =>
-                          const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final tx = transactions[index];
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(formatCurrency.format(tx.totalPrice),
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                            "${formatDateTime.format(tx.timestamp.toDate())}\n"
-                            "Laba: ${formatCurrency.format(tx.totalProfit)}",
-                            style: TextStyle(color: Colors.green[700]),
-                          ),
-                          // ✅ PERBAIKAN: Jangan gunakan Flexible di trailing
-                          trailing: Container(
-                            constraints: const BoxConstraints(maxWidth: 120),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8)),
-                            child: Text(
-                              "${tx.totalItems} item",
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        );
-                      },
+                      ],
                     ),
+                  ),
+
+                  // ✨ Recent Transactions
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Transaksi Terbaru',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (transactions.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey[200]!),
+                            ),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(Icons.receipt_long_outlined,
+                                      size: 64, color: Colors.grey[300]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Tidak ada transaksi',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: transactions.length > 10
+                                ? 10
+                                : transactions.length,
+                            separatorBuilder: (_, __) => Divider(
+                              height: 1,
+                              color: Colors.grey[200],
+                            ),
+                            itemBuilder: (context, index) {
+                              final tx = transactions[index];
+                              final bool isFirst =
+                                  index == 0;
+                              final bool isLast = index ==
+                                  (transactions.length > 10
+                                      ? 9
+                                      : transactions.length - 1);
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border(
+                                    top: isFirst
+                                        ? BorderSide(
+                                            color: Colors.grey[200]!,
+                                          )
+                                        : BorderSide.none,
+                                    bottom: isLast
+                                        ? BorderSide(
+                                            color: Colors.grey[200]!,
+                                          )
+                                        : BorderSide.none,
+                                  ),
+                                ),
+                                child: _buildTransactionTile(tx),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // ✨ Gold Analytics
                   if (_isGold) _buildGoldAnalytics(top5Products, hourlySales),
+
                   const SizedBox(height: 40),
                 ],
               ),
@@ -591,235 +836,104 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // ✅ FIXED: Widget filter user TANPA validasi yang menyebabkan loop
-  Widget _buildUserFilterWidget() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      color: Colors.white,
-      child: StreamBuilder<List<UserModel>>(
-        stream: _authService.getStoreUsersForFilter(widget.storeId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                "Error memuat user: ${snapshot.error}",
-                style: const TextStyle(color: Colors.red),
-              ),
-            );
-          }
-
-          final users = snapshot.data ?? [];
-
-          // ✅ Hapus duplikat berdasarkan UID
-          final Map<String, UserModel> uniqueUsersMap = {};
-          for (final user in users) {
-            uniqueUsersMap[user.uid] = user;
-          }
-          final uniqueUsers = uniqueUsersMap.values.toList();
-
-          // ✅ PERBAIKAN: Hanya validasi, JANGAN auto-reset
-          String? dropdownValue = _selectedUserId;
-
-          // Jika _selectedUserId tidak null, cek apakah ada di list
-          if (_selectedUserId != null) {
-            bool isValidUser = uniqueUsers.any((u) => u.uid == _selectedUserId);
-            if (!isValidUser) {
-              // User tidak ditemukan, set dropdown ke "ALL" tapi JANGAN ubah state
-              dropdownValue = null;
-              print(
-                  '⚠️ Warning: Selected user $_selectedUserId not found in dropdown list');
-            }
-          }
-
-          print(
-              '👥 Users count: ${uniqueUsers.length}, Selected: $_selectedUserId, Dropdown value: ${dropdownValue ?? "ALL"}');
-
-          return DropdownButtonFormField<String>(
-            value: dropdownValue ?? "ALL",
-            hint: const Text("Filter berdasarkan User"),
-            isExpanded: true,
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.person_search, color: Colors.grey[600]),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: primaryColor),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              fillColor: Colors.grey.shade50,
-              filled: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
+  // ✨ Modern Summary Card
+  Widget _buildModernSummaryCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
-            items: [
-              const DropdownMenuItem<String>(
-                value: "ALL",
-                child: Text("Semua User",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
               ),
-              ...uniqueUsers.map((UserModel user) {
-                return DropdownMenuItem<String>(
-                  value: user.uid,
-                  child: Text(
-                    "${user.username} (${user.role})",
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    softWrap: false,
-                  ),
-                );
-              }).toList(),
-            ],
-            onChanged: (String? newValue) {
-              print('🔄 User selected: $newValue');
-              setState(() {
-                _selectedUserId = newValue == "ALL" ? null : newValue;
-              });
-              // Jangan gunakan WidgetsBinding, langsung panggil
-              _refreshData();
-            },
-          );
-        },
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGoldAnalytics(
-    List<MapEntry<String, int>> topProducts,
-    Map<int, int> hourlySales,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  // ✨ Transaction Tile
+  Widget _buildTransactionTile(TransactionModel tx) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.star_rate_rounded, color: Colors.amber[800]),
-              const SizedBox(width: 8),
               Text(
-                "Analitik Gold: Produk Terlaris",
+                formatCurrency.format(tx.totalPrice),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                formatDateTime.format(tx.timestamp.toDate()),
                 style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber[900]),
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                ),
               ),
             ],
           ),
         ),
-        if (topProducts.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text("Data penjualan belum cukup.",
-                style: TextStyle(color: Colors.grey)),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: topProducts.length,
-            itemBuilder: (context, index) {
-              final item = topProducts[index];
-              return Card(
-                elevation: 0,
-                color: Colors.amber[50],
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.amber[100],
-                    child: Text(
-                      "${index + 1}",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber[900]),
-                    ),
-                  ),
-                  title: Text(item.key,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  trailing: Text(
-                    "${item.value}x Terjual",
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              );
-            },
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.green[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.green[200]!),
           ),
-        const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            children: [
-              Icon(Icons.access_time_filled_rounded, color: Colors.blue[800]),
-              const SizedBox(width: 8),
-              Text(
-                "Analitik Gold: Jam Ramai (Per Transaksi)",
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[900]),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 200,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value % 6 == 0) {
-                          return Text("${value.toInt()}:00",
-                              style: const TextStyle(fontSize: 10));
-                        }
-                        return const Text("");
-                      },
-                      reservedSize: 22,
-                    ),
-                  ),
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey[200]!,
-                    strokeWidth: 1,
-                  ),
-                ),
-                barGroups: hourlySales.entries.map((entry) {
-                  return BarChartGroupData(
-                    x: entry.key,
-                    barRods: [
-                      BarChartRodData(
-                        toY: entry.value.toDouble(),
-                        color: primaryColor,
-                        width: 10,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
+          child: Text(
+            "Laba: ${formatCurrency.format(tx.totalProfit)}",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.green[700],
             ),
           ),
         ),
@@ -827,33 +941,275 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildSummaryCard(
-      String title, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withOpacity(.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(.25)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+  // ✨ User Filter Widget
+  Widget _buildUserFilterWidget() {
+    return StreamBuilder<List<UserModel>>(
+      stream: _authService.getStoreUsersForFilter(widget.storeId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text("Error memuat user: ${snapshot.error}"),
+          );
+        }
+
+        final users = snapshot.data ?? [];
+        final Map<String, UserModel> uniqueUsersMap = {};
+        for (final user in users) {
+          uniqueUsersMap[user.uid] = user;
+        }
+        final uniqueUsers = uniqueUsersMap.values.toList();
+
+        String? dropdownValue = _selectedUserId;
+        if (_selectedUserId != null) {
+          bool isValidUser = uniqueUsers.any((u) => u.uid == _selectedUserId);
+          if (!isValidUser) {
+            dropdownValue = null;
+          }
+        }
+
+        return DropdownButtonFormField<String>(
+          value: dropdownValue ?? "ALL",
+          decoration: InputDecoration(
+            prefixIcon: Icon(Icons.person_rounded, color: primaryColor),
+            hintText: "Filter berdasarkan kasir",
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: primaryColor, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          ),
+          items: [
+            const DropdownMenuItem(
+              value: "ALL",
+              child: Text("Semua Kasir"),
+            ),
+            ...uniqueUsers.map((user) {
+              return DropdownMenuItem(
+                value: user.uid,
+                child: Text("${user.username} (${user.role})"),
+              );
+            }).toList(),
           ],
+          onChanged: (value) {
+            setState(() {
+              _selectedUserId = value == "ALL" ? null : value;
+            });
+            _refreshData();
+          },
+        );
+      },
+    );
+  }
+
+  // ✨ Gold Analytics Widget
+  Widget _buildGoldAnalytics(
+    List<MapEntry<String, int>> topProducts,
+    Map<int, int> hourlySales,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Top Products Section
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.star_rounded, color: Colors.amber[600]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Produk Terlaris',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (topProducts.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "Belum ada data penjualan",
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: topProducts.length,
+                  separatorBuilder: (_, __) => Divider(color: Colors.grey[200]),
+                  itemBuilder: (context, index) {
+                    final item = topProducts[index];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.grey[200]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.amber[100],
+                          child: Text(
+                            "${index + 1}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber[900],
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          item.key,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber[200]!),
+                          ),
+                          child: Text(
+                            "${item.value}x",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber[800],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
-      ),
+
+        // Hourly Sales Chart
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.schedule_rounded, color: Colors.blue[600]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Jam Ramai (Per Transaksi)',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: SizedBox(
+                  height: 220,
+                  child: BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      borderData: FlBorderData(show: false),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: Colors.grey[200]!,
+                          strokeWidth: 1,
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              if (value % 6 == 0) {
+                                return Text(
+                                  "${value.toInt()}:00",
+                                  style: const TextStyle(fontSize: 10),
+                                );
+                              }
+                              return const Text("");
+                            },
+                            reservedSize: 30,
+                          ),
+                        ),
+                      ),
+                      barGroups: hourlySales.entries.map((entry) {
+                        return BarChartGroupData(
+                          x: entry.key,
+                          barRods: [
+                            BarChartRodData(
+                              toY: entry.value.toDouble(),
+                              gradient: LinearGradient(
+                                colors: [
+                                  primaryColor,
+                                  primaryColor.withOpacity(0.6)
+                                ],
+                              ),
+                              width: 8,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

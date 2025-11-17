@@ -253,7 +253,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
                             size: 64, color: Colors.grey[600]),
                         const SizedBox(height: 8),
                         Text(
-                          'Tap untuk pilih gambar',
+                          'Tap untuk pilih gambar (opsional)',
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                       ],
