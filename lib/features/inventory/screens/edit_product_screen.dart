@@ -2,7 +2,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/product_model.dart'; // Model utama
+import '../models/product_model.dart';
 import '../services/inventory_service.dart';
 import '../../auth/widgets/custom_button.dart';
 import '../../auth/widgets/custom_textfield.dart';
@@ -10,21 +10,17 @@ import '../widgets/image_picker_widget.dart';
 import '../../../shared/theme.dart';
 import '../models/category_model.dart';
 import '../services/category_service.dart';
-import '../models/product_variant_model.dart'; // 1. IMPOR MODEL VARIAN
+import '../models/product_variant_model.dart';
 
 class EditProductScreen extends StatefulWidget {
-  final Product product; // Produk yang akan diedit
-  // ===================================
-  // PERBAIKAN ERROR ADA DI SINI (Constructor)
-  // ===================================
-  final String storeId; // 2. TAMBAHKAN storeId
+  final Product product;
+  final String storeId;
 
   const EditProductScreen({
     super.key,
     required this.product,
-    required this.storeId, // 3. WAJIBKAN storeId
+    required this.storeId,
   });
-  // ===================================
 
   @override
   State<EditProductScreen> createState() => _EditProductScreenState();
@@ -49,20 +45,18 @@ class _EditProductScreenState extends State<EditProductScreen> {
   final List<TextEditingController> _variantStokCtrls = [];
 
   late bool _isVariantProduct;
-
   Uint8List? _imageBytes;
   String? _imageName;
   bool _isLoading = false;
   String? _selectedCategoryId;
   late Stream<List<Category>> _categoryStream;
-  List<Category> _cachedCategories = []; // Inisialisasi kosong
+  List<Category> _cachedCategories = [];
   String? _existingImageUrl;
 
   @override
   void initState() {
     super.initState();
 
-    // 4. PERBAIKAN: Gunakan widget.storeId
     _categoryStream = _categoryService.getCategories(widget.storeId);
 
     // ISI FORM DENGAN DATA PRODUK YANG ADA
@@ -72,7 +66,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
     _existingImageUrl = widget.product.imageUrl;
 
     if (_isVariantProduct) {
-      // Isi form varian
       if (widget.product.variants.isEmpty) {
         _addNewVariantRow();
       } else {
@@ -87,7 +80,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
         }
       }
     } else {
-      // Isi form simpel
       modalController.text = widget.product.hargaModal.toString();
       jualController.text = widget.product.hargaJual.toString();
       stokController.text = widget.product.stok.toString();
@@ -98,7 +90,6 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   @override
   void dispose() {
-    // ... (Hapus semua controller)
     nameController.dispose();
     modalController.dispose();
     jualController.dispose();
@@ -136,14 +127,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
     });
   }
 
+  // ✅ PERBAIKAN: Tambah progress indicator
   Future<void> _saveProduct() async {
-    // Validasi dasar
     if (nameController.text.isEmpty || _selectedCategoryId == null) {
       _showError("Nama produk dan Kategori harus diisi");
       return;
     }
 
-    // 5. PERBAIKAN ERROR "KATEGORI TIDAK DITEMUKAN"
     if (_cachedCategories.isEmpty) {
       _showError("Data kategori belum dimuat. Coba beberapa saat lagi.");
       return;
@@ -160,6 +150,36 @@ class _EditProductScreenState extends State<EditProductScreen> {
     setState(() {
       _isLoading = true;
     });
+
+    // ✅ Tampilkan progress snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  _imageBytes != null
+                      ? 'Mengupload gambar baru...'
+                      : 'Menyimpan perubahan...',
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(minutes: 2),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    }
 
     try {
       Product updatedProduct;
@@ -207,6 +227,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
           isVariantProduct: true,
           variants: variantsList,
         );
+
+        print('📝 Update produk varian: ${nameController.text}');
+        print('📦 Jumlah varian: ${variantsList.length}');
       } else {
         // === LOGIKA UPDATE PRODUK SIMPEL ===
         if (modalController.text.isEmpty ||
@@ -245,7 +268,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
           hargaDiskon: hargaDiskon,
           sku: sku,
         );
+
+        print('📝 Update produk simpel: ${nameController.text}');
+        print('💰 Harga: Modal=$hargaModal, Jual=$hargaJual');
       }
+
+      print(
+          '🖼️ Ganti gambar: ${_imageBytes != null ? "Ya (${(_imageBytes!.length / 1024).toStringAsFixed(2)} KB)" : "Tidak"}');
 
       await _inventoryService.updateProduct(
         product: updatedProduct,
@@ -254,12 +283,32 @@ class _EditProductScreenState extends State<EditProductScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Produk berhasil diperbarui!"),
-        backgroundColor: Colors.green,
-      ));
+
+      // ✅ Hapus progress snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // ✅ Tampilkan sukses
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text("Produk berhasil diperbarui!"),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      print('✅ Produk berhasil diupdate');
       Navigator.pop(context);
     } catch (e) {
+      print('❌ Error update produk: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
       _showError("Gagal menyimpan: ${e.toString()}");
     } finally {
       if (mounted) {
@@ -272,10 +321,19 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   void _showError(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -283,7 +341,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Edit Produk: ${widget.product.name}"),
+        title: Text("Edit: ${widget.product.name}"),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -294,13 +352,12 @@ class _EditProductScreenState extends State<EditProductScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // === FORM DETAIL UMUM ===
                 CustomTextField(
                   controller: nameController,
                   hintText: "Nama Produk",
                 ),
                 const SizedBox(height: 16),
-                _buildCategoryDropdown(), // Dropdown kategori
+                _buildCategoryDropdown(),
                 const SizedBox(height: 24),
 
                 ImagePickerWidget(
@@ -319,18 +376,18 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 const SizedBox(height: 16),
 
                 // === TIPE PRODUK (DISABLE) ===
-                Text("Tipe Produk",
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const Text(
+                  "Tipe Produk",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
                 const SizedBox(height: 8),
 
-                // PERBAIKAN OVERFLOW TOGGLEBUTTONS
                 ToggleButtons(
                   isSelected: [
                     _isVariantProduct == false,
                     _isVariantProduct == true
                   ],
-                  onPressed: null, // Nonaktifkan tombol
+                  onPressed: null, // Nonaktifkan
                   borderRadius: BorderRadius.circular(8),
                   fillColor: Colors.grey.shade200,
                   color: Colors.grey.shade600,
@@ -338,51 +395,82 @@ class _EditProductScreenState extends State<EditProductScreen> {
                   selectedBorderColor: Colors.grey.shade400,
                   borderColor: Colors.grey.shade400,
                   constraints: BoxConstraints(
-                      // Menggunakan padding halaman (24*2=48) dan 6px spasi
                       minWidth:
                           (MediaQuery.of(context).size.width - 48 - 6) / 2,
                       minHeight: 40),
                   children: const [
                     Center(
-                      child: Text(
-                        "Produk Simpel",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          "Produk Simpel",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14),
+                        ),
                       ),
                     ),
                     Center(
-                      child: Text(
-                        "Produk Bervarian",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          "Produk Bervarian",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14),
+                        ),
                       ),
                     ),
                   ],
                 ),
 
-                Text("Tipe produk tidak dapat diubah setelah dibuat.",
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    "Tipe produk tidak dapat diubah setelah dibuat.",
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ),
                 const SizedBox(height: 24),
 
-                // TAMPILKAN FORM SESUAI TIPE
                 if (_isVariantProduct)
-                  _buildVariantForm() // Form baru untuk varian
+                  _buildVariantForm()
                 else
-                  _buildSimpleForm(), // Form lama untuk produk simpel
+                  _buildSimpleForm(),
 
                 const SizedBox(height: 32),
                 CustomButton(
                   onTap: _isLoading ? null : _saveProduct,
                   text: _isLoading ? "Menyimpan..." : "Update Produk",
                 ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
+          // ✅ Loading overlay dengan message
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+              color: Colors.black.withOpacity(0.7),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      _imageBytes != null
+                          ? 'Mengupload gambar baru...\nMohon tunggu'
+                          : 'Menyimpan perubahan...',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -390,17 +478,26 @@ class _EditProductScreenState extends State<EditProductScreen> {
     );
   }
 
-  // WIDGET KATEGORI (dengan perbaikan loading)
+  // ✅ PERBAIKAN: Dropdown kategori dengan loading state yang lebih baik
   Widget _buildCategoryDropdown() {
     return StreamBuilder<List<Category>>(
       stream: _categoryStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
             _cachedCategories.isEmpty) {
-          // Tampilkan loading HANYA JIKA cache masih kosong
           return DropdownButtonFormField<String>(
             value: _selectedCategoryId,
-            hint: const Text("Memuat kategori..."),
+            hint: const Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text("Memuat kategori..."),
+              ],
+            ),
             isExpanded: true,
             decoration: InputDecoration(
               enabledBorder: OutlineInputBorder(
@@ -409,6 +506,8 @@ class _EditProductScreenState extends State<EditProductScreen> {
               ),
               fillColor: Colors.grey.shade100,
               filled: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
             ),
             items: _selectedCategoryId != null
                 ? [
@@ -418,25 +517,38 @@ class _EditProductScreenState extends State<EditProductScreen> {
                     )
                   ]
                 : [],
-            onChanged: null, // Nonaktifkan saat loading
+            onChanged: null,
           );
         }
 
         if (snapshot.hasData) {
-          _cachedCategories = snapshot.data!; // Update cache
+          _cachedCategories = snapshot.data!;
         }
 
         if (_cachedCategories.isEmpty) {
-          // Ini terjadi jika stream selesai tapi datanya kosong
-          return const Center(
-            child: Text(
-              "Belum ada kategori. Silakan tambah di menu Inventaris.",
-              textAlign: TextAlign.center,
+          return Center(
+            child: Column(
+              children: [
+                Text(
+                  "Belum ada kategori.",
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    // Refresh stream
+                    setState(() {
+                      _categoryStream =
+                          _categoryService.getCategories(widget.storeId);
+                    });
+                  },
+                  child: const Text("Muat Ulang"),
+                ),
+              ],
             ),
           );
         }
 
-        // Cek jika _selectedCategoryId masih valid
         if (_selectedCategoryId != null &&
             !_cachedCategories.any((c) => c.id == _selectedCategoryId)) {
           _selectedCategoryId = null;
@@ -478,13 +590,14 @@ class _EditProductScreenState extends State<EditProductScreen> {
     );
   }
 
-  // WIDGET FORM SIMPEL (tidak berubah)
   Widget _buildSimpleForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Harga & Stok (Produk Simpel)",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          "Harga & Stok (Produk Simpel)",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 16),
         CustomTextField(
           controller: modalController,
@@ -515,7 +628,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
         const SizedBox(height: 16),
         CustomTextField(
           controller: stokController,
-          hintText: "Stok Awal",
+          hintText: "Stok",
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -530,38 +643,39 @@ class _EditProductScreenState extends State<EditProductScreen> {
     );
   }
 
-  // WIDGET FORM VARIAN (tidak berubah)
   Widget _buildVariantForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Varian Produk",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          "Varian Produk",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 8),
         Text(
-            "Tambahkan varian seperti Ukuran (S, M, L) atau Rasa (Pedas, Original).",
-            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          "Tambahkan varian seperti Ukuran (S, M, L) atau Rasa (Pedas, Original).",
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
         const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _variantNameCtrls.length,
-          itemBuilder: (context, index) {
-            return _buildVariantInputRow(index);
-          },
+        Column(
+          children: List.generate(
+            _variantNameCtrls.length,
+            (index) => _buildVariantInputRow(index),
+          ),
         ),
         const SizedBox(height: 16),
         TextButton.icon(
           icon: const Icon(Icons.add, color: primaryColor),
-          label: const Text("Tambah Varian",
-              style: TextStyle(color: primaryColor)),
+          label: const Text(
+            "Tambah Varian",
+            style: TextStyle(color: primaryColor),
+          ),
           onPressed: _addNewVariantRow,
         ),
       ],
     );
   }
 
-  // WIDGET BARIS VARIAN (tidak berubah)
   Widget _buildVariantInputRow(int index) {
     final numberFormatter = [
       FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d*')),
@@ -574,8 +688,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Colors.grey.shade200)),
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -586,16 +701,22 @@ class _EditProductScreenState extends State<EditProductScreen> {
                   child: TextField(
                     controller: _variantNameCtrls[index],
                     decoration: const InputDecoration(
-                        labelText: "Nama Varian (Cth: Besar)"),
+                      labelText: "Nama Varian (Cth: Besar)",
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: Icon(Icons.delete_outline, color: Colors.red[400]),
                   onPressed: () {
                     if (_variantNameCtrls.length > 1) {
                       _removeVariantRow(index);
+                    } else {
+                      _showError("Minimal harus ada 1 varian");
                     }
                   },
+                  tooltip: "Hapus varian",
                 )
               ],
             ),
@@ -605,7 +726,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 Expanded(
                   child: TextField(
                     controller: _variantModalCtrls[index],
-                    decoration: const InputDecoration(labelText: "H. Modal"),
+                    decoration: const InputDecoration(
+                      labelText: "H. Modal",
+                      border: OutlineInputBorder(),
+                    ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: numberFormatter,
@@ -615,7 +739,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 Expanded(
                   child: TextField(
                     controller: _variantJualCtrls[index],
-                    decoration: const InputDecoration(labelText: "H. Jual"),
+                    decoration: const InputDecoration(
+                      labelText: "H. Jual",
+                      border: OutlineInputBorder(),
+                    ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: numberFormatter,
@@ -629,7 +756,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 Expanded(
                   child: TextField(
                     controller: _variantStokCtrls[index],
-                    decoration: const InputDecoration(labelText: "Stok"),
+                    decoration: const InputDecoration(
+                      labelText: "Stok",
+                      border: OutlineInputBorder(),
+                    ),
                     keyboardType: TextInputType.number,
                     inputFormatters: digitsFormatter,
                   ),

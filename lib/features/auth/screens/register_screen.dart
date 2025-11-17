@@ -96,7 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       width: 150,
                       height: 150,
                       child: Image.asset(
-                        'assets/images/pos_umkm.png',
+                        'assets/image/ezzen.png',
                         fit: BoxFit.contain,
                       ),
                     ),

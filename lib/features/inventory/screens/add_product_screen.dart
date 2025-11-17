@@ -9,7 +9,6 @@ import '../widgets/image_picker_widget.dart';
 import '../../../shared/theme.dart';
 import '../models/category_model.dart';
 import '../services/category_service.dart';
-// 1. IMPOR MODEL VARIAN
 import '../models/product_variant_model.dart';
 
 class AddProductScreen extends StatefulWidget {
@@ -32,17 +31,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final TextEditingController diskonController = TextEditingController();
   final TextEditingController skuController = TextEditingController();
 
-  // ==========================================================
-  // 2. STATE BARU UNTUK VARIAN (MENGGUNAKAN CONTROLLER)
-  // ==========================================================
+  // --- Controller Varian ---
   final List<TextEditingController> _variantNameCtrls = [];
   final List<TextEditingController> _variantModalCtrls = [];
   final List<TextEditingController> _variantJualCtrls = [];
   final List<TextEditingController> _variantStokCtrls = [];
-  // (Anda bisa tambahkan _variantDiskonCtrls dan _variantSkuCtrls di sini jika mau)
 
-  bool _isVariantProduct = false; // Penanda tipe produk
-
+  bool _isVariantProduct = false;
   Uint8List? _imageBytes;
   String? _imageName;
   bool _isLoading = false;
@@ -54,10 +49,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
   void initState() {
     super.initState();
     _categoryStream = _categoryService.getCategories(widget.storeId);
-    _addNewVariantRow(); // 3. Langsung siapkan 1 baris controller
+    _addNewVariantRow();
   }
 
-  // 4. BERSIHKAN CONTROLLER SAAT KELUAR
   @override
   void dispose() {
     nameController.dispose();
@@ -67,7 +61,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     diskonController.dispose();
     skuController.dispose();
 
-    // Hapus semua controller varian
     for (var i = 0; i < _variantNameCtrls.length; i++) {
       _variantNameCtrls[i].dispose();
       _variantModalCtrls[i].dispose();
@@ -77,7 +70,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     super.dispose();
   }
 
-  // 5. FUNGSI UNTUK MENAMBAH CONTROLLER BARU
   void _addNewVariantRow() {
     setState(() {
       _variantNameCtrls.add(TextEditingController());
@@ -87,10 +79,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
     });
   }
 
-  // 6. FUNGSI UNTUK MENGHAPUS CONTROLLER
   void _removeVariantRow(int index) {
     setState(() {
-      // Hapus controller dari list
       _variantNameCtrls[index].dispose();
       _variantModalCtrls[index].dispose();
       _variantJualCtrls[index].dispose();
@@ -103,6 +93,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     });
   }
 
+  // ✅ PERBAIKAN: Tambah progress indicator yang lebih baik
   Future<void> _saveProduct() async {
     // Validasi dasar
     if (nameController.text.isEmpty || _selectedCategoryId == null) {
@@ -119,13 +110,39 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _isLoading = true;
     });
 
+    // ✅ Tampilkan progress snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  _imageBytes != null
+                      ? 'Mengupload gambar ke server...'
+                      : 'Menyimpan produk...',
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(minutes: 2), // Timeout panjang
+          backgroundColor: Colors.blue,
+        ),
+      );
+    }
+
     try {
       if (_isVariantProduct) {
-        // ===========================================
-        // 7. LOGIKA BARU SIMPAN PRODUK BERVARIAN
-        // ===========================================
-
-        // Buat list varian DARI CONTROLLER
+        // === LOGIKA SIMPAN PRODUK BERVARIAN ===
         List<ProductVariant> variantsList = [];
 
         if (_variantNameCtrls.isEmpty) {
@@ -153,9 +170,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
             hargaModal: modal,
             hargaJual: jual,
             stok: stok,
-            // (Anda bisa tambahkan diskon/sku di sini jika menambah controller-nya)
           ));
         }
+
+        print('📦 Menyimpan produk bervarian: ${nameController.text}');
+        print('📦 Jumlah varian: ${variantsList.length}');
+        print(
+            '🖼️ Ada gambar: ${_imageBytes != null ? "Ya (${(_imageBytes!.length / 1024).toStringAsFixed(2)} KB)" : "Tidak"}');
 
         await _inventoryService.addProduct(
           name: nameController.text.trim(),
@@ -165,10 +186,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
           imageBytes: _imageBytes,
           imageName: _imageName,
           isVariantProduct: true,
-          variants: variantsList, // Kirim list varian yang baru dibuat
+          variants: variantsList,
         );
       } else {
-        // === LOGIKA SIMPAN PRODUK SIMPEL (Tidak Berubah) ===
+        // === LOGIKA SIMPAN PRODUK SIMPEL ===
         if (modalController.text.isEmpty ||
             jualController.text.isEmpty ||
             stokController.text.isEmpty) {
@@ -190,6 +211,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
           throw const FormatException("Format angka tidak valid.");
         }
 
+        print('📦 Menyimpan produk simpel: ${nameController.text}');
+        print('💰 Harga: Modal=$hargaModal, Jual=$hargaJual');
+        print('📊 Stok: $stok');
+        print(
+            '🖼️ Ada gambar: ${_imageBytes != null ? "Ya (${(_imageBytes!.length / 1024).toStringAsFixed(2)} KB)" : "Tidak"}');
+
         await _inventoryService.addProduct(
           name: nameController.text.trim(),
           storeId: widget.storeId,
@@ -207,12 +234,32 @@ class _AddProductScreenState extends State<AddProductScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Produk berhasil ditambahkan!"),
-        backgroundColor: Colors.green,
-      ));
+
+      // ✅ Hapus progress snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // ✅ Tampilkan sukses
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text("Produk berhasil ditambahkan!"),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      print('✅ Produk berhasil disimpan');
       Navigator.pop(context);
     } catch (e) {
+      print('❌ Error simpan produk: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
       _showError("Gagal menyimpan: ${e.toString()}");
     } finally {
       if (mounted) {
@@ -225,10 +272,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   void _showError(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -247,13 +303,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // === FORM DETAIL UMUM ===
                 CustomTextField(
                   controller: nameController,
                   hintText: "Nama Produk (Cth: Nasi Goreng)",
                 ),
                 const SizedBox(height: 16),
-                _buildCategoryDropdown(), // Dropdown kategori
+                _buildCategoryDropdown(),
                 const SizedBox(height: 24),
                 ImagePickerWidget(
                   onImagePicked: (imageBytes, fileName) {
@@ -267,10 +322,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 const Divider(),
                 const SizedBox(height: 16),
 
-                // === TOGGLE PRODUK SIMPEL / VARIAN ===
-                Text("Tipe Produk",
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const Text(
+                  "Tipe Produk",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
                 const SizedBox(height: 8),
 
                 ToggleButtons(
@@ -288,48 +343,74 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   fillColor: primaryColor,
                   color: primaryColor,
                   constraints: BoxConstraints(
-                      // Menggunakan padding halaman (24*2=48) dan 6px spasi
                       minWidth:
                           (MediaQuery.of(context).size.width - 48 - 6) / 2,
                       minHeight: 40),
                   children: const [
                     Center(
-                      child: Text(
-                        "Produk Simpel",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          "Produk Simpel",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14),
+                        ),
                       ),
                     ),
                     Center(
-                      child: Text(
-                        "Produk Bervarian",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          "Produk Bervarian",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14),
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
 
-                // TAMPILKAN FORM SESUAI TIPE
                 if (_isVariantProduct)
-                  _buildVariantForm() // Form baru untuk varian
+                  _buildVariantForm()
                 else
-                  _buildSimpleForm(), // Form lama untuk produk simpel
+                  _buildSimpleForm(),
 
                 const SizedBox(height: 32),
                 CustomButton(
                   onTap: _isLoading ? null : _saveProduct,
                   text: _isLoading ? "Menyimpan..." : "Simpan Produk",
                 ),
+                const SizedBox(height: 24), // Extra padding bottom
               ],
             ),
           ),
+          // ✅ Loading overlay dengan message
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+              color: Colors.black.withOpacity(0.7),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      _imageBytes != null
+                          ? 'Mengupload gambar...\nMohon tunggu'
+                          : 'Menyimpan produk...',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -337,7 +418,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // WIDGET KATEGORI (tidak berubah)
   Widget _buildCategoryDropdown() {
     return StreamBuilder<List<Category>>(
       stream: _categoryStream,
@@ -395,13 +475,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // WIDGET FORM SIMPEL (tidak berubah)
   Widget _buildSimpleForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Harga & Stok (Produk Simpel)",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          "Harga & Stok (Produk Simpel)",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 16),
         CustomTextField(
           controller: modalController,
@@ -447,44 +528,40 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // WIDGET FORM VARIAN (tidak berubah)
   Widget _buildVariantForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Varian Produk",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          "Varian Produk",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 8),
         Text(
           "Tambahkan varian seperti Ukuran (S, M, L) atau Rasa (Pedas, Original).",
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
-
-        // GANTI LISTVIEW → COLUMN
         Column(
           children: List.generate(
             _variantNameCtrls.length,
             (index) => _buildVariantInputRow(index),
           ),
         ),
-
         const SizedBox(height: 16),
         TextButton.icon(
           icon: const Icon(Icons.add, color: primaryColor),
-          label: const Text("Tambah Varian",
-              style: TextStyle(color: primaryColor)),
+          label: const Text(
+            "Tambah Varian",
+            style: TextStyle(color: primaryColor),
+          ),
           onPressed: _addNewVariantRow,
         ),
       ],
     );
   }
 
-  // ==========================================================
-  // 10. (PERBAIKAN OVERFLOW) WIDGET BARIS VARIAN
-  // ==========================================================
   Widget _buildVariantInputRow(int index) {
-    // Helper kecil untuk input formatter angka
     final numberFormatter = [
       FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d*')),
     ];
@@ -496,41 +573,48 @@ class _AddProductScreenState extends State<AddProductScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Colors.grey.shade200)),
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // --- Baris 1: Nama Varian & Tombol Hapus ---
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _variantNameCtrls[index],
                     decoration: const InputDecoration(
-                        labelText: "Nama Varian (Cth: Besar)"),
+                      labelText: "Nama Varian (Cth: Besar)",
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: Icon(Icons.delete_outline, color: Colors.red[400]),
                   onPressed: () {
                     if (_variantNameCtrls.length > 1) {
-                      // Sisakan minimal 1
                       _removeVariantRow(index);
+                    } else {
+                      _showError("Minimal harus ada 1 varian");
                     }
                   },
+                  tooltip: "Hapus varian",
                 )
               ],
             ),
             const SizedBox(height: 12),
-            // --- Baris 2: Harga Modal & Harga Jual ---
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _variantModalCtrls[index],
-                    decoration: const InputDecoration(labelText: "H. Modal"),
+                    decoration: const InputDecoration(
+                      labelText: "H. Modal",
+                      border: OutlineInputBorder(),
+                    ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: numberFormatter,
@@ -540,7 +624,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 Expanded(
                   child: TextField(
                     controller: _variantJualCtrls[index],
-                    decoration: const InputDecoration(labelText: "H. Jual"),
+                    decoration: const InputDecoration(
+                      labelText: "H. Jual",
+                      border: OutlineInputBorder(),
+                    ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: numberFormatter,
@@ -549,19 +636,20 @@ class _AddProductScreenState extends State<AddProductScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // --- Baris 3: Stok ---
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _variantStokCtrls[index],
-                    decoration: const InputDecoration(labelText: "Stok"),
+                    decoration: const InputDecoration(
+                      labelText: "Stok",
+                      border: OutlineInputBorder(),
+                    ),
                     keyboardType: TextInputType.number,
                     inputFormatters: digitsFormatter,
                   ),
                 ),
                 const SizedBox(width: 12),
-                // (Anda bisa tambahkan TextField SKU di sini jika mau)
                 Expanded(child: Container()),
               ],
             ),

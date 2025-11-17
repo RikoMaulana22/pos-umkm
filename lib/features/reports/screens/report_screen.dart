@@ -1,4 +1,3 @@
-// lib/features/reports/screens/report_screen.dart
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -39,6 +38,7 @@ class _ReportScreenState extends State<ReportScreen> {
   bool _isGold = false;
   bool _isExporting = false;
   String? _selectedUserId;
+  bool _isMigrationDone = false;
 
   @override
   void initState() {
@@ -50,14 +50,34 @@ class _ReportScreenState extends State<ReportScreen> {
     if (!_isSilverOrGold) {
       _selectedDays = 7;
     }
+
+    // Migration - comment setelah berhasil
+    _runMigrationOnce();
+
     _refreshData();
   }
 
+  Future<void> _runMigrationOnce() async {
+    if (_isMigrationDone) return;
+
+    try {
+      print('🔄 Memulai migration check...');
+      await _reportService.migrateOldTransactions(widget.storeId);
+      _isMigrationDone = true;
+      print('✅ Migration check selesai');
+    } catch (e) {
+      print('❌ Migration error: $e');
+    }
+  }
+
   void _refreshData() {
+    print(
+        '🔄 Refreshing data: days=$_selectedDays, cashierId=$_selectedUserId');
     setState(() {
       _salesDataFuture = _reportService.getDailySalesAndProfitData(
         widget.storeId,
         _selectedDays,
+        cashierId: _selectedUserId,
       );
     });
   }
@@ -105,7 +125,6 @@ class _ReportScreenState extends State<ReportScreen> {
       );
 
       if (path != null && mounted) {
-        // Untuk Mobile
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -121,7 +140,6 @@ class _ReportScreenState extends State<ReportScreen> {
         );
         await _pdfExportService.openPdfFile(path);
       } else if (mounted) {
-        // Untuk Web (path == null)
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -145,17 +163,67 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: StreamBuilder<List<TransactionModel>>(
-        stream: _reportService.getTransactions(widget.storeId,
-            cashierId: _selectedUserId),
+        stream: _reportService.getTransactions(
+          widget.storeId,
+          cashierId: _selectedUserId,
+          days: _selectedDays,
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Scaffold(
-                appBar: AppBar(
-                  title: const Text("Laporan"),
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
+              appBar: AppBar(
+                title: const Text("Laporan"),
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              body: const Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text("Error"),
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          size: 60, color: Colors.red),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Error Memuat Transaksi",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "${snapshot.error}",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.red[700]),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _selectedUserId = null;
+                            _selectedDays = 7;
+                            _refreshData();
+                          });
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text("Reset Filter & Coba Lagi"),
+                      ),
+                    ],
+                  ),
                 ),
-                body: const Center(child: CircularProgressIndicator()));
+              ),
+            );
           }
 
           final List<TransactionModel> transactions = snapshot.data ?? [];
@@ -198,7 +266,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
           return Scaffold(
             appBar: AppBar(
-              title: const Text("Laporan"),
+              title: Text("Laporan ${_selectedDays} Hari"),
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
               actions: [
@@ -230,8 +298,12 @@ class _ReportScreenState extends State<ReportScreen> {
                   icon: const Icon(Icons.filter_list),
                   tooltip: "Filter Tanggal",
                   onSelected: (value) {
-                    _selectedDays = value;
-                    _refreshData(); // Refresh grafik
+                    setState(() {
+                      _selectedDays = value;
+                    });
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _refreshData();
+                    });
                   },
                   itemBuilder: (context) => [
                     const PopupMenuItem(
@@ -248,6 +320,49 @@ class _ReportScreenState extends State<ReportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_isGold) _buildUserFilterWidget(),
+
+                  // Indikator filter sederhana (tanpa nested StreamBuilder)
+                  if (_selectedUserId != null)
+                    Container(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.filter_alt,
+                              color: Colors.blue[700], size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              "Filter kasir aktif",
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _selectedUserId = null;
+                              });
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _refreshData();
+                              });
+                            },
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -303,13 +418,32 @@ class _ReportScreenState extends State<ReportScreen> {
                       builder: (context,
                           AsyncSnapshot<Map<String, Map<String, double>>>
                               snap) {
-                        if (!snap.hasData) {
+                        if (snap.connectionState == ConnectionState.waiting) {
                           return const Center(
                               child: CircularProgressIndicator());
                         }
 
+                        if (snap.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Text("Error: ${snap.error}"),
+                            ),
+                          );
+                        }
+
                         final salesData = snap.data!;
                         final dates = salesData.keys.toList();
+
+                        if (dates.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              "Tidak ada data untuk ditampilkan",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          );
+                        }
+
                         final salesSpots = <FlSpot>[];
                         final profitSpots = <FlSpot>[];
 
@@ -394,10 +528,18 @@ class _ReportScreenState extends State<ReportScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       child: Center(
-                          child: Text(
-                        "Tidak ada transaksi untuk filter ini.",
-                        style: TextStyle(color: Colors.grey[600]),
-                      )),
+                        child: Column(
+                          children: [
+                            Icon(Icons.receipt_long_outlined,
+                                size: 60, color: Colors.grey[400]),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Tidak ada transaksi untuk filter ini.",
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
                     )
                   else
                     ListView.separated(
@@ -420,16 +562,19 @@ class _ReportScreenState extends State<ReportScreen> {
                             "Laba: ${formatCurrency.format(tx.totalProfit)}",
                             style: TextStyle(color: Colors.green[700]),
                           ),
+                          // ✅ PERBAIKAN: Jangan gunakan Flexible di trailing
                           trailing: Container(
+                            constraints: const BoxConstraints(maxWidth: 120),
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                                 color: Colors.grey[100],
                                 borderRadius: BorderRadius.circular(8)),
                             child: Text(
-                              "${tx.totalItems} item • ${tx.paymentMethod}",
+                              "${tx.totalItems} item",
                               style: const TextStyle(
                                   fontSize: 12, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         );
@@ -446,7 +591,7 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // WIDGET FILTER USER (GOLD)
+  // ✅ FIXED: Widget filter user TANPA validasi yang menyebabkan loop
   Widget _buildUserFilterWidget() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -454,13 +599,47 @@ class _ReportScreenState extends State<ReportScreen> {
       child: StreamBuilder<List<UserModel>>(
         stream: _authService.getStoreUsersForFilter(widget.storeId),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: Text("Memuat user..."));
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
           }
-          final users = snapshot.data!;
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                "Error memuat user: ${snapshot.error}",
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
+
+          final users = snapshot.data ?? [];
+
+          // ✅ Hapus duplikat berdasarkan UID
+          final Map<String, UserModel> uniqueUsersMap = {};
+          for (final user in users) {
+            uniqueUsersMap[user.uid] = user;
+          }
+          final uniqueUsers = uniqueUsersMap.values.toList();
+
+          // ✅ PERBAIKAN: Hanya validasi, JANGAN auto-reset
+          String? dropdownValue = _selectedUserId;
+
+          // Jika _selectedUserId tidak null, cek apakah ada di list
+          if (_selectedUserId != null) {
+            bool isValidUser = uniqueUsers.any((u) => u.uid == _selectedUserId);
+            if (!isValidUser) {
+              // User tidak ditemukan, set dropdown ke "ALL" tapi JANGAN ubah state
+              dropdownValue = null;
+              print(
+                  '⚠️ Warning: Selected user $_selectedUserId not found in dropdown list');
+            }
+          }
+
+          print(
+              '👥 Users count: ${uniqueUsers.length}, Selected: $_selectedUserId, Dropdown value: ${dropdownValue ?? "ALL"}');
 
           return DropdownButtonFormField<String>(
-            value: _selectedUserId,
+            value: dropdownValue ?? "ALL",
             hint: const Text("Filter berdasarkan User"),
             isExpanded: true,
             decoration: InputDecoration(
@@ -470,8 +649,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: Theme.of(context).colorScheme.primary),
+                borderSide: BorderSide(color: primaryColor),
                 borderRadius: BorderRadius.circular(12),
               ),
               fillColor: Colors.grey.shade50,
@@ -481,30 +659,29 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
             items: [
               const DropdownMenuItem<String>(
-                value: null,
+                value: "ALL",
                 child: Text("Semua User",
                     style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              ...users.map((UserModel user) {
+              ...uniqueUsers.map((UserModel user) {
                 return DropdownMenuItem<String>(
                   value: user.uid,
-                  // ===================================
-                  // PERBAIKAN OVERFLOW (YANG BENAR)
-                  // ===================================
                   child: Text(
                     "${user.username} (${user.role})",
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
-                    softWrap: false, // <-- Tambahkan ini
+                    softWrap: false,
                   ),
-                  // ===================================
                 );
               }).toList(),
             ],
             onChanged: (String? newValue) {
+              print('🔄 User selected: $newValue');
               setState(() {
-                _selectedUserId = newValue;
+                _selectedUserId = newValue == "ALL" ? null : newValue;
               });
+              // Jangan gunakan WidgetsBinding, langsung panggil
+              _refreshData();
             },
           );
         },
@@ -512,16 +689,13 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // WIDGET ANALITIK GOLD (PRODUK & JAM)
   Widget _buildGoldAnalytics(
     List<MapEntry<String, int>> topProducts,
     Map<int, int> hourlySales,
   ) {
-    // ... (kode _buildGoldAnalytics tidak berubah)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- PRODUK TERLARIS ---
         const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -578,8 +752,6 @@ class _ReportScreenState extends State<ReportScreen> {
               );
             },
           ),
-
-        // --- JAM RAMAI ---
         const Divider(thickness: 8, color: Color(0xFFF5F5F5)),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -655,7 +827,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // WIDGET KARTU RINGKASAN
   Widget _buildSummaryCard(
       String title, String value, IconData icon, Color color) {
     return Expanded(

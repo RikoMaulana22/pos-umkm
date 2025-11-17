@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "http://localhost",
+      "http://localhost:*",
+      "https://pos-umkm.web.app",
+      "https://pos-umkm.firebaseapp.com"
+    ],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type", "Authorization"]
+  }
+]
