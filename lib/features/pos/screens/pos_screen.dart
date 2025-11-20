@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
+//import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
 
 import '../../inventory/services/inventory_service.dart';
 import '../../inventory/models/product_model.dart';
@@ -71,54 +71,54 @@ class _PosScreenState extends State<PosScreen>
     super.dispose();
   }
 
-  Future<void> _scanBarcode() async {
-    if (_isScanning) return;
+  // Future<void> _scanBarcode() async {
+  //   if (_isScanning) return;
 
-    setState(() => _isScanning = true);
+  //   setState(() => _isScanning = true);
 
-    String barcodeScanRes;
+  //   String barcodeScanRes;
 
-    try {
-      barcodeScanRes = await FlutterBarcodeScanner.scanBarcode(
-        "#${primaryColor.value.toRadixString(16).substring(2)}",
-        "Batal",
-        true,
-        ScanMode.BARCODE,
-      );
-    } catch (e) {
-      barcodeScanRes = "-1";
-      if (mounted) {
-        _showSnackBar("Gagal scan: $e", Colors.red);
-      }
-    }
+  //   try {
+  //     barcodeScanRes = await FlutterBarcodeScanner.scanBarcode(
+  //       "#${primaryColor.value.toRadixString(16).substring(2)}",
+  //       "Batal",
+  //       true,
+  //       ScanMode.BARCODE,
+  //     );
+  //   } catch (e) {
+  //     barcodeScanRes = "-1";
+  //     if (mounted) {
+  //       _showSnackBar("Gagal scan: $e", Colors.red);
+  //     }
+  //   }
 
-    if (barcodeScanRes == "-1" || !mounted) {
-      setState(() => _isScanning = false);
-      return;
-    }
+  //   if (barcodeScanRes == "-1" || !mounted) {
+  //     setState(() => _isScanning = false);
+  //     return;
+  //   }
 
-    try {
-      final product = await _inventoryService.getProductBySKU(
-          widget.storeId, barcodeScanRes);
+  //   try {
+  //     final product = await _inventoryService.getProductBySKU(
+  //         widget.storeId, barcodeScanRes);
 
-      if (product != null) {
-        if (product.stok > 0) {
-          Provider.of<CartProvider>(context, listen: false).addItem(product);
-          _showSnackBar("✓ ${product.name} ditambahkan", Colors.green);
-        } else {
-          _showSnackBar("✗ Stok ${product.name} habis!", Colors.red);
-        }
-      } else {
-        _showSnackBar("✗ Produk tidak ditemukan", Colors.orange);
-      }
-    } catch (e) {
-      _showSnackBar("Error: $e", Colors.red);
-    } finally {
-      if (mounted) {
-        setState(() => _isScanning = false);
-      }
-    }
-  }
+  //     if (product != null) {
+  //       if (product.stok > 0) {
+  //         Provider.of<CartProvider>(context, listen: false).addItem(product);
+  //         _showSnackBar("✓ ${product.name} ditambahkan", Colors.green);
+  //       } else {
+  //         _showSnackBar("✗ Stok ${product.name} habis!", Colors.red);
+  //       }
+  //     } else {
+  //       _showSnackBar("✗ Produk tidak ditemukan", Colors.orange);
+  //     }
+  //   } catch (e) {
+  //     _showSnackBar("Error: $e", Colors.red);
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() => _isScanning = false);
+  //     }
+  //   }
+  // }
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -175,7 +175,7 @@ class _PosScreenState extends State<PosScreen>
                       )
                     : const Icon(Icons.qr_code_scanner_rounded),
                 tooltip: "Scan Barcode",
-                onPressed: _isScanning ? null : _scanBarcode,
+                onPressed: _isScanning ? null : null, //_scanBarcode,
               ),
             ),
           ),

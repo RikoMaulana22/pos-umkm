@@ -1,11 +1,9 @@
-// lib/features/inventory/services/inventory_service.dart
-
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product_model.dart';
-import '../models/product_variant_model.dart'; // <-- tambahan dari kode 1
+import '../models/product_variant_model.dart';
 
 class InventoryService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -24,58 +22,49 @@ class InventoryService {
     required String categoryName,
     Uint8List? imageBytes,
     String? imageName,
-
-    // 🔹 Produk varian atau tidak
     required bool isVariantProduct,
-
-    // 🔹 Produk simpel
     double? hargaModal,
     double? hargaJual,
     int? stok,
     double? hargaDiskon,
     String? sku,
-
-    // 🔹 Produk varian
     List<ProductVariant>? variants,
   }) async {
     if (_userId == null) throw Exception("User belum login");
 
     try {
       String? downloadUrl;
-
-      // ===========================
-      // 🖼️ Upload Gambar Jika Ada
-      // ===========================
+      // PATCH Handle Upload
       if (imageBytes != null && imageBytes.isNotEmpty && imageName != null) {
-        final String fileExtension = imageName.contains('.')
-            ? imageName.split('.').last.toLowerCase()
-            : 'jpg';
+        final extension = imageName.split('.').last.toLowerCase();
+        final validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+        final ext = validExtensions.contains(extension) ? extension : 'jpg';
 
-        final String fileName =
-            'products/$storeId/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+        final fileName =
+            'products/$storeId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        final metadata = SettableMetadata(contentType: 'image/$ext');
 
-        final metadata = SettableMetadata(contentType: 'image/$fileExtension');
-
-        final uploadTask = _storage.ref(fileName).putData(imageBytes, metadata);
+        final Reference ref = _storage.ref().child(fileName);
+        final uploadTask = ref.putData(imageBytes, metadata);
         final snapshot = await uploadTask.whenComplete(() {});
-        downloadUrl = await snapshot.ref.getDownloadURL();
+
+        // PATCH: Pastikan upload sukses, baru ambil URL
+        if (snapshot.state == TaskState.success) {
+          downloadUrl = await ref.getDownloadURL();
+        } else {
+          throw Exception('Upload gambar ke storage gagal!');
+        }
       }
 
-      // ===========================
-      // 🔹 BUAT PRODUK BARU
-      // ===========================
+      // PATCH: Jika tidak ada gambar, imageUrl biarkan null
       final product = Product(
         name: name.trim(),
-        imageUrl: downloadUrl ?? '',
+        imageUrl: downloadUrl,
         createdBy: _userId!,
         categoryId: categoryId,
         categoryName: categoryName,
-
-        // Produk varian
         isVariantProduct: isVariantProduct,
         variants: variants ?? [],
-
-        // Produk simpel
         hargaModal: hargaModal ?? 0,
         hargaJual: hargaJual ?? 0,
         stok: stok ?? 0,
@@ -94,9 +83,6 @@ class InventoryService {
     }
   }
 
-  /// ========================================================
-  /// ✅ GET LIST PRODUK
-  /// ========================================================
   Stream<List<Product>> getProducts(String storeId, {String? categoryId}) {
     if (_userId == null) return Stream.value([]);
 
@@ -115,9 +101,6 @@ class InventoryService {
         .toList());
   }
 
-  /// ========================================================
-  /// ✅ UPDATE PRODUK (Simpel / Varian)
-  /// ========================================================
   Future<void> updateProduct({
     required Product product,
     Uint8List? newImageBytes,
@@ -153,16 +136,12 @@ class InventoryService {
       // Data yang diperbarui
       final updatedData = {
         'name': product.name.trim(),
-        'imageUrl': newImageUrl ?? '',
+        'imageUrl': newImageUrl,
         'timestamp': FieldValue.serverTimestamp(),
         'categoryId': product.categoryId,
         'categoryName': product.categoryName,
-
-        // Produk varian
         'isVariantProduct': product.isVariantProduct,
         'variants': product.variants.map((v) => v.toMap()).toList(),
-
-        // Produk simpel
         'hargaModal': product.hargaModal,
         'hargaJual': product.hargaJual,
         'stok': product.stok,
@@ -179,9 +158,6 @@ class InventoryService {
     }
   }
 
-  /// ========================================================
-  /// ❌ HAPUS PRODUK
-  /// ========================================================
   Future<void> deleteProduct(String productId) async {
     if (_userId == null) throw Exception("User belum login");
 
@@ -205,9 +181,6 @@ class InventoryService {
     }
   }
 
-  /// ========================================================
-  /// 🔄 UPDATE STOK (Produk Simpel)
-  /// ========================================================
   Future<void> adjustStock(String productId, int adjustmentAmount) async {
     if (_userId == null) throw Exception("User belum login");
     if (adjustmentAmount == 0) return;
@@ -221,9 +194,6 @@ class InventoryService {
     }
   }
 
-  /// ========================================================
-  /// 🔍 CARI PRODUK BERDASARKAN SKU (Simpel)
-  /// ========================================================
   Future<Product?> getProductBySKU(String storeId, String sku) async {
     if (_userId == null) throw Exception("User belum login");
 

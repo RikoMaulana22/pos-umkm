@@ -8,6 +8,8 @@ import '../../reports/models/transaction_model.dart';
 // 1. IMPOR BARU
 import '../../settings/services/printer_service.dart';
 
+
+
 class ReceiptScreen extends StatefulWidget {
   final String transactionId;
   const ReceiptScreen({super.key, required this.transactionId});
@@ -25,40 +27,38 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   final formatDateTime = DateFormat('dd/MM/yyyy, HH:mm');
   bool _isPrinting = false;
 
-  // 3. FUNGSI UNTUK MENCETAK
+  // 3. FUNGSI UNTUK MENCETAK (DENGAN PERBAIKAN LOGIKA KONEKSI)
   Future<void> _printReceipt(TransactionModel tx) async {
     setState(() {
       _isPrinting = true;
     });
 
-    // 1. Dapatkan printer yang tersimpan
-    final printerData = await _printerService.getSavedPrinter();
-    final String? address = printerData['address'];
-
-    if (address == null || address.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content:
-              Text("Printer belum diatur. Silakan atur di menu Pengaturan."),
-          backgroundColor: Colors.orange));
-      setState(() {
-        _isPrinting = false;
-      });
-      return;
-    }
-
-    // 2. Buat objek device
-    final device = BluetoothDevice(printerData['name'], address);
-
-    // 3. Cek koneksi & hubungkan jika perlu
     try {
+      // 1. Dapatkan printer yang tersimpan
+      final printerData = await _printerService.getSavedPrinter();
+      final String? address = printerData['address'];
+
+      if (address == null || address.isEmpty) {
+        throw Exception(
+            "Printer belum diatur. Silakan atur di menu Pengaturan.");
+      }
+
+      // 2. Buat objek device
+      final device = BluetoothDevice(printerData['name'], address);
+
+      // 3. Cek koneksi & hubungkan jika perlu
       bool? isConnected = await _printer.isConnected;
       if (isConnected != true) {
-        await _printer.connect(device);
+        // PERBAIKAN: Hubungkan dan periksa hasilnya
+        bool? connectResult = await _printer.connect(device);
+        if (connectResult != true) {
+          // Jika koneksi gagal, lemparkan error
+          throw Exception("Gagal terhubung ke printer. Pastikan printer menyala.");
+        }
       }
 
       // 4. Format & Kirim data ke printer
-      // Ukuran: 0=normal, 1=sedang, 2=besar
-      // Align: 0=kiri, 1=tengah, 2=kanan
+      // Jika kita sampai di sini, printer seharusnya sudah terhubung.
       _printer.printCustom("Pembayaran Berhasil", 2, 1);
       _printer.printCustom(formatDateTime.format(tx.timestamp.toDate()), 0, 1);
       _printer.printNewLine();
@@ -84,13 +84,16 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       _printer.printNewLine();
       _printer.paperCut(); // Potong kertas
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Gagal mencetak: ${e.toString()}"),
+          content: Text(e.toString()),
           backgroundColor: Colors.red));
     } finally {
-      setState(() {
-        _isPrinting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isPrinting = false;
+        });
+      }
     }
   }
 

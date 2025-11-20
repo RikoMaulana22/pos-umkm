@@ -1,4 +1,3 @@
-// lib/features/superadmin/screens/superadmin_dashboard.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../shared/theme.dart';
@@ -9,6 +8,9 @@ import 'edit_store_screen.dart';
 import 'superadmin_revenue_screen.dart';
 import '../models/upgrade_request_model.dart';
 import 'upgrade_requests_screen.dart';
+
+// 👇 Tambahan untuk pengaduan customer
+import 'complaints_screen.dart';
 
 class SuperAdminDashboard extends StatefulWidget {
   const SuperAdminDashboard({super.key});
@@ -35,7 +37,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // ✨ Notification Button dengan Badge
+          // 🔔 Badge permintaan upgrade
           StreamBuilder<List<UpgradeRequestModel>>(
             stream: _service.getUpgradeRequests(),
             builder: (context, snapshot) {
@@ -43,7 +45,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   (snapshot.hasData && snapshot.data != null)
                       ? snapshot.data!.length
                       : 0;
-
               return Container(
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
@@ -52,12 +53,14 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                 ),
                 child: IconButton(
                   icon: Badge(
-                    label: Text('$requestCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        )),
+                    label: Text(
+                      '$requestCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
                     isLabelVisible: requestCount > 0,
                     backgroundColor: Colors.orange,
                     child: const Icon(Icons.notifications_rounded),
@@ -76,7 +79,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             },
           ),
 
-          // ✨ Revenue Button
+          // 💰 Revenue Button
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
@@ -97,7 +100,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             ),
           ),
 
-          // ✨ Logout Button
+          // 🚪 Logout Button
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
@@ -114,97 +117,136 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       ),
       body: Column(
         children: [
-          // ✨ Header Section
           _buildHeaderSection(),
-
-          // ✨ Store List
           Expanded(
-            child: StreamBuilder<List<StoreModel>>(
-              stream: _service.getAllStores(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(color: superAdminColor),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Memuat toko...',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline,
-                            size: 80, color: Colors.red[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Terjadi Kesalahan',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
+            child: Column(
+              children: [
+                // 📋 Daftar Toko
+                Expanded(
+                  child: StreamBuilder<List<StoreModel>>(
+                    stream: _service.getAllStores(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(color: superAdminColor),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Memuat toko...',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                        );
+                      }
 
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.store_outlined,
-                            size: 100, color: Colors.grey[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Belum Ada Toko',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline,
+                                  size: 80, color: Colors.red[300]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Terjadi Kesalahan',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${snapshot.error}',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tekan tombol + untuk menambah toko pertama',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                        );
+                      }
 
-                final stores = snapshot.data!;
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.store_outlined,
+                                  size: 100, color: Colors.grey[300]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Belum Ada Toko',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tekan tombol + untuk menambah toko pertama',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final stores = snapshot.data!;
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        itemCount: stores.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final store = stores[index];
+                          return _buildStoreCard(store);
+                        },
+                      );
+                    },
                   ),
-                  itemCount: stores.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final store = stores[index];
-                    return _buildStoreCard(store);
-                  },
-                );
-              },
+                ),
+
+                // 📢 Tombol Pengaduan Customer (tanpa badge logic tambahan di sini,
+                // karena badge jumlah pengaduan sudah di ComplaintsScreen)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.campaign_rounded,
+                          color: Colors.white),
+                      label: const Text(
+                        "Pengaduan Customer",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[900],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 2,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ComplaintsScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -288,8 +330,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             ],
           ),
           const SizedBox(height: 16),
-
-          // ✨ Stats Row
           StreamBuilder<List<StoreModel>>(
             stream: _service.getAllStores(),
             builder: (context, snapshot) {
@@ -380,7 +420,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   }
 
   Widget _buildStoreCard(StoreModel store) {
-    // Determine package color
     Color packageColor;
     String packageLabel;
     IconData packageIcon;
@@ -436,11 +475,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✨ Header Row
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar
                   Container(
                     width: 48,
                     height: 48,
@@ -465,8 +502,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     ),
                   ),
                   const SizedBox(width: 12),
-
-                  // Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,8 +529,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                       ],
                     ),
                   ),
-
-                  // Package Badge
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -524,10 +557,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
-
-              // ✨ Details Row
               Row(
                 children: [
                   Expanded(
@@ -542,16 +572,12 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     child: _buildDetailItem(
                       icon: Icons.calendar_today_rounded,
                       label: 'Dibuat',
-                      value: _formatDate(DateTime
-                          .timestamp()), // TODO: replace with actual StoreModel date field when available
+                      value: _formatDate(DateTime.timestamp()),
                     ),
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
-
-              // ✨ Action Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(

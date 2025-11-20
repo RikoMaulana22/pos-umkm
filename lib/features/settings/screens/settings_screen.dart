@@ -1,6 +1,7 @@
 // lib/features/settings/screens/settings_screen.dart
 import 'dart:async';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
+import 'package:erp_umkm/features/settings/screens/contact_us_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../shared/theme.dart';
 import '../models/store_model.dart';
@@ -615,6 +616,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _buildPrinterSettingsCard(),
 
                     const SizedBox(height: 40),
+                    ListTile(
+                      leading: Icon(Icons.support_agent_rounded,
+                          color: Colors.blue[700]),
+                      title: const Text('Hubungi Kami'),
+                      trailing:
+                          Icon(Icons.navigate_next, color: Colors.grey[600]),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ContactUsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 40),
 
                     // ✨ Save Button
                     SizedBox(
@@ -755,7 +773,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ✅ PERBAIKAN: Warna text putih jika belum ada printer
+                      // ✅ PERBAIKAN: Warna teks diubah agar terlihat
                       Text(
                         _savedPrinterName ?? "Hubungkan Printer",
                         style: TextStyle(
@@ -763,7 +781,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           fontWeight: FontWeight.bold,
                           color: _savedPrinterName != null
                               ? Colors.black87 // Hitam jika terhubung
-                              : Colors.white, // Putih jika belum terhubung
+                              : Colors
+                                  .black87, // << PERBAIKAN DI SINI (sebelumnya Colors.white)
                         ),
                       ),
                       const SizedBox(height: 4),

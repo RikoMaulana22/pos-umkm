@@ -2,7 +2,7 @@
 import 'dart:typed_data'; // Tambahan
 import 'package:flutter/foundation.dart'; // Import baru untuk kIsWeb
 import 'package:flutter/services.dart';
-import 'package:open_file_plus/open_file_plus.dart';
+import 'package:open_filex/open_filex.dart';
 // import 'package:path_provider/path_provider.dart'; // Dihapus, dipindah ke helper
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -74,7 +74,7 @@ class PdfExportService {
       return;
     }
 
-    final result = await OpenFile.open(path);
+    final result = await OpenFilex.open(path);
     if (result.type != ResultType.done) {
       throw Exception("Gagal membuka file PDF: ${result.message}");
     }

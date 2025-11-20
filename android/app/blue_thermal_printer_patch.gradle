@@ -1,0 +1,4 @@
+// Patch untuk blue_thermal_printer namespace issue
+android {
+    namespace 'com.example.blue_thermal_printer'
+}

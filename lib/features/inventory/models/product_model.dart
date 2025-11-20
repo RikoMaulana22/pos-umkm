@@ -1,4 +1,3 @@
-// lib/features/inventory/models/product_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 // 1. IMPOR MODEL BARU
 import 'product_variant_model.dart';
@@ -46,16 +45,12 @@ class Product {
   });
 
   // 4. UBAH HELPER HARGA FINAL
-  // Ini akan mengambil harga produk simpel
   double get hargaJualFinal {
     if (isVariantProduct) {
-      // Jika produk bervarian, harga ini tidak relevan
-      // Kita bisa tampilkan rentang harga, misal "Mulai dari Rp 10.000"
       return variants
           .map((v) => v.hargaJualFinal)
           .fold(0.0, (a, b) => a < b ? a : b);
     }
-    // Logika lama untuk produk simpel
     if (hargaDiskon != null && hargaDiskon! > 0 && hargaDiskon! < hargaJual) {
       return hargaDiskon!;
     }
@@ -63,7 +58,6 @@ class Product {
   }
 
   // 5. HELPER BARU UNTUK STOK
-  // Menjumlahkan stok semua varian, atau stok simpel
   int get totalStok {
     if (isVariantProduct) {
       return variants.fold(0, (sum, v) => sum + v.stok);
@@ -71,7 +65,6 @@ class Product {
     return stok;
   }
 
-  /// Convert Product object → Map (untuk disimpan ke Firestore)
   Map<String, dynamic> toMap() {
     return {
       'name': name,
@@ -80,13 +73,8 @@ class Product {
       'timestamp': FieldValue.serverTimestamp(),
       'categoryId': categoryId,
       'categoryName': categoryName,
-
-      // 6. SIMPAN DATA VARIAN BARU
       'isVariantProduct': isVariantProduct,
-      // Simpan list of variants sebagai list of maps
       'variants': variants.map((v) => v.toMap()).toList(),
-
-      // 7. SIMPAN DATA PRODUK SIMPEL
       'hargaModal': hargaModal,
       'hargaJual': hargaJual,
       'stok': stok,
@@ -95,7 +83,6 @@ class Product {
     };
   }
 
-  /// Convert Map → Product object (saat dibaca dari Firestore)
   factory Product.fromMap(Map<String, dynamic> data, String id) {
     // 8. BACA DATA VARIAN DARI FIRESTORE
     List<ProductVariant> productVariants = [];
@@ -115,16 +102,12 @@ class Product {
           : null,
       categoryId: data['categoryId'],
       categoryName: data['categoryName'],
-
-      // 9. ISI FIELD VARIAN BARU
       isVariantProduct: data['isVariantProduct'] ?? false,
       variants: productVariants,
-
-      // 10. ISI FIELD PRODUK SIMPEL
-      hargaModal: (data['hargaModal'] ?? 0).toDouble(),
-      hargaJual: (data['hargaJual'] ?? 0).toDouble(),
-      stok: (data['stok'] ?? 0).toInt(),
-      hargaDiskon: data['hargaDiskon'] as double?,
+      hargaModal: (data['hargaModal'] as num?)?.toDouble() ?? 0.0,
+      hargaJual: (data['hargaJual'] as num?)?.toDouble() ?? 0.0,
+      stok: (data['stok'] as num?)?.toInt() ?? 0,
+      hargaDiskon: (data['hargaDiskon'] as num?)?.toDouble(),
       sku: data['sku'] as String?,
     );
   }

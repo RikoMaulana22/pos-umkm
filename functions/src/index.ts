@@ -79,7 +79,7 @@ export const createPaymentRequest = onCall(async (request) => {
         id: packageName,
         price: price,
         quantity: 1,
-        name: `Langganan POS UMKM - Paket ${packageName}`,
+        name: `Langganan EZZEN Point of Sale - Paket ${packageName}`,
       },
     ],
     custom_field1: storeId,

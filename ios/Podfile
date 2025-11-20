@@ -1,0 +1,12 @@
+target 'Runner' do
+  flutter_root = File.expand_path(File.join(packages_dir, 'flutter'))
+  load File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+
+  flutter_ios_podfile_setup
+
+  post_install do |installer|
+    installer.pods_project.targets.each do |target|
+      flutter_install_all_ios_build_settings installer
+    end
+  end
+end
