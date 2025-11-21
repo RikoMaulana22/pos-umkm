@@ -46,13 +46,12 @@ class InventoryService {
 
         final Reference ref = _storage.ref().child(fileName);
         final uploadTask = ref.putData(imageBytes, metadata);
-        final snapshot = await uploadTask.whenComplete(() {});
 
-        // PATCH: Pastikan upload sukses, baru ambil URL
+// Tunggu task selesai. Jika gagal/permission denied, baris ini akan melempar Error.
+        final snapshot = await uploadTask;
+
         if (snapshot.state == TaskState.success) {
           downloadUrl = await ref.getDownloadURL();
-        } else {
-          throw Exception('Upload gambar ke storage gagal!');
         }
       }
 
