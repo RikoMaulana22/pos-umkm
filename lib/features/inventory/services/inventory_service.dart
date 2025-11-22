@@ -32,33 +32,50 @@ class InventoryService {
   }) async {
     if (_userId == null) throw Exception("User belum login");
 
-    try {
-      String? downloadUrl;
-      // PATCH Handle Upload
-      if (imageBytes != null && imageBytes.isNotEmpty && imageName != null) {
-        final extension = imageName.split('.').last.toLowerCase();
-        final validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-        final ext = validExtensions.contains(extension) ? extension : 'jpg';
+    String? downloadUrl;
 
-        final fileName =
-            'products/$storeId/${DateTime.now().millisecondsSinceEpoch}.$ext';
-        final metadata = SettableMetadata(contentType: 'image/$ext');
+    // 1. LOGIKA UPLOAD GAMBAR
+    if (imageBytes != null && imageBytes.isNotEmpty) {
+      try {
+        // Buat nama file unik (Timestamp)
+        // Kita paksa ekstensi .jpg agar Android tidak bingung membaca format
+        final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-        final Reference ref = _storage.ref().child(fileName);
-        final uploadTask = ref.putData(imageBytes, metadata);
+        // Pastikan folder aman (cegah error jika storeId kosong)
+        final String safeStoreId = storeId.isEmpty ? 'common' : storeId;
+        final String path = 'products/$safeStoreId/$fileName';
 
-// Tunggu task selesai. Jika gagal/permission denied, baris ini akan melempar Error.
-        final snapshot = await uploadTask;
+        // Buat referensi ke lokasi storage
+        final Reference ref = _storage.ref().child(path);
 
-        if (snapshot.state == TaskState.success) {
-          downloadUrl = await ref.getDownloadURL();
-        }
+        // Set metadata agar file dikenali sebagai gambar
+        final metadata = SettableMetadata(
+            contentType: 'image/jpeg',
+            customMetadata: {'uploaded_by': _userId!});
+
+        // 🔥 INI KUNCINYA: KITA TAMPUNG TASK UPLOADNYA
+        final UploadTask uploadTask = ref.putData(imageBytes, metadata);
+
+        // ⏳ KITA TUNGGU (AWAIT) SAMPAI TASK SELESAI 100%
+        // snapshot berisi bukti bahwa file sudah ada di server
+        final TaskSnapshot snapshot = await uploadTask.whenComplete(() => null);
+
+        // ✅ AMBIL URL DARI SNAPSHOT (BUKAN DARI REF MANUAL)
+        // Ini menjamin file PASTI ADA sebelum kita minta URL-nya
+        downloadUrl = await snapshot.ref.getDownloadURL();
+
+        print("✅ Sukses Upload: $downloadUrl");
+      } catch (e) {
+        print("⚠️ Gagal Upload Gambar (Data produk tetap akan disimpan): $e");
+        // Kita biarkan downloadUrl null, jangan throw error agar user tidak perlu mengetik ulang
       }
+    }
 
-      // PATCH: Jika tidak ada gambar, imageUrl biarkan null
+    // 2. LOGIKA SIMPAN KE FIRESTORE (Tetap jalan meski gambar gagal)
+    try {
       final product = Product(
         name: name.trim(),
-        imageUrl: downloadUrl,
+        imageUrl: downloadUrl, // Akan null jika upload gagal/tidak ada gambar
         createdBy: _userId!,
         categoryId: categoryId,
         categoryName: categoryName,
@@ -78,7 +95,7 @@ class InventoryService {
 
       await _firestore.collection('products').add(productData);
     } catch (e) {
-      throw Exception("Gagal menambah produk: $e");
+      throw Exception("Gagal menyimpan data ke database: $e");
     }
   }
 
