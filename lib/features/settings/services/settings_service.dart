@@ -2,6 +2,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/store_model.dart';
 import '../services/printer_service.dart';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -29,6 +31,20 @@ class SettingsService {
     } catch (e) {
       throw Exception("Gagal update nama toko: ${e.toString()}");
     }
+  }
+
+  Future<void> saveQrisImage(File image) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('qris_image_path', image.path);
+    // Untuk upload ke server, tambahkan logic di sini
+  }
+
+  // Ambil gambar QRIS
+  Future<File?> loadQrisImage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final path = prefs.getString('qris_image_path');
+    if (path != null) return File(path);
+    return null;
   }
 
   // TODO: Nanti kita tambahkan fungsi untuk pengaturan printer

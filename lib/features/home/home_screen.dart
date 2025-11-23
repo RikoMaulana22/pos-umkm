@@ -1,9 +1,5 @@
-// lib/features/home/home_screen.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../../shared/theme.dart';
-import 'widgets/dashboard_button.dart';
-import '../../shared/widgets/curved_header_clipper.dart';
 
 // Impor semua halaman
 import '../pos/screens/pos_screen.dart';
@@ -11,8 +7,10 @@ import '../inventory/screens/inventory_screen.dart';
 import '../reports/screens/report_screen.dart';
 import '../settings/screens/settings_screen.dart';
 import '../admin/screens/manage_cashier_screen.dart';
-import 'widgets/low_stock_alert_widget.dart';
 
+// -----------------------------------------------------------------------------------------------------------------
+// HomeScreen Design Modern
+// -----------------------------------------------------------------------------------------------------------------
 class HomeScreen extends StatelessWidget {
   final String storeId;
   final String subscriptionPackage;
@@ -74,124 +72,143 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
-          // ✨ Header dengan Gradient & Info User
+          // --------------------- Modern Header ---------------------
           Container(
-            height: 180,
+            height: 160,
             width: double.infinity,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  primaryColor,
-                  primaryColor.withOpacity(0.8),
+                  Color(0xFF1765CB),
+                  Color(0xFF2351A2),
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: primaryColor.withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
+                    color: Colors.blue.withOpacity(0.15),
+                    blurRadius: 15,
+                    offset: Offset(0, 6)),
               ],
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(36),
+                bottomRight: Radius.circular(36),
+              ),
             ),
             child: SafeArea(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
-                child: Column(
+                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 18),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Top row: Title & Logout
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Selamat Datang, 👋',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white.withOpacity(0.9),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              userName,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Konfirmasi Logout'),
-                                  content: const Text(
-                                      'Apakah Anda yakin ingin keluar?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Batal'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                        signOut();
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                      ),
-                                      child: const Text('Logout'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.logout, size: 24),
-                            color: Colors.white,
-                            tooltip: "Logout",
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Package Badge
+                    // Avatar Profile
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
+                      width: 46,
+                      height: 46,
                       decoration: BoxDecoration(
-                        color: _getPackageColor(),
-                        borderRadius: BorderRadius.circular(20),
+                        shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: _getPackageColor().withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
+                            color: Colors.white.withOpacity(0.10),
+                            blurRadius: 18,
+                            offset: Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: Text(
-                        _getPackageName(),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      child: CircleAvatar(
+                        backgroundColor: Colors.grey[100],
+                        backgroundImage: NetworkImage(
+                          user?.photoURL ??
+                              'https://ui-avatars.com/api/?name=$userName&background=1765CB&color=fff',
                         ),
+                        radius: 23,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Welcome text and package badge
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Selamat Datang",
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                letterSpacing: 0.2,
+                              )),
+                          const SizedBox(height: 4),
+                          Text(
+                            userName,
+                            style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white.withOpacity(0.95)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _getPackageColor(),
+                              borderRadius: BorderRadius.circular(13),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getPackageColor().withOpacity(0.18),
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                )
+                              ],
+                            ),
+                            child: Text(
+                              _getPackageName(),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    // Logout button, more minimal
+                    Material(
+                      color: Colors.white.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(13),
+                      child: IconButton(
+                        icon: const Icon(Icons.logout,
+                            color: Colors.white, size: 21),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Konfirmasi Logout'),
+                              content:
+                                  const Text('Apakah Anda yakin ingin keluar?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Batal'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    signOut();
+                                  },
+                                  child: const Text('Logout'),
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        tooltip: "Logout",
                       ),
                     ),
                   ],
@@ -200,22 +217,13 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
 
-          // ✨ Konten dengan Better Spacing
+          // --------------------- Main Content ---------------------
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Low Stock Alert (jika ada)
-                  if (isSilverOrGold) ...[
-                    LowStockAlertWidget(
-                      storeId: storeId,
-                      lowStockThreshold: 5,
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-
                   // Section Title
                   Row(
                     children: [
@@ -223,7 +231,7 @@ class HomeScreen extends StatelessWidget {
                         width: 4,
                         height: 24,
                         decoration: BoxDecoration(
-                          color: primaryColor,
+                          color: Color(0xFF1765CB),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -240,7 +248,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // ✨ Grid Menu dengan Improved Design
+                  // Grid Menu Modern
                   GridView.count(
                     crossAxisCount: 2,
                     crossAxisSpacing: 16,
@@ -249,7 +257,6 @@ class HomeScreen extends StatelessWidget {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      // Transaksi Kasir
                       _buildModernMenuCard(
                         context: context,
                         label: "Transaksi",
@@ -264,8 +271,6 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-
-                      // Inventaris
                       _buildModernMenuCard(
                         context: context,
                         label: "Inventaris",
@@ -277,8 +282,6 @@ class HomeScreen extends StatelessWidget {
                           InventoryScreen(storeId: storeId),
                         ),
                       ),
-
-                      // Laporan
                       _buildModernMenuCard(
                         context: context,
                         label: "Laporan",
@@ -293,8 +296,6 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-
-                      // Pengaturan (Admin only)
                       if (isAdmin)
                         _buildModernMenuCard(
                           context: context,
@@ -307,8 +308,6 @@ class HomeScreen extends StatelessWidget {
                             SettingsScreen(storeId: storeId),
                           ),
                         ),
-
-                      // Manajemen Kasir (Silver/Gold + Admin)
                       if (isSilverOrGold && isAdmin)
                         _buildModernMenuCard(
                           context: context,
@@ -327,15 +326,14 @@ class HomeScreen extends StatelessWidget {
                         ),
                     ],
                   ),
-
                   const SizedBox(height: 32),
 
-                  // ✨ Footer Info
+                  // Footer
                   Center(
                     child: Column(
                       children: [
                         Text(
-                          'POS UMKM v1.0',
+                          'EZZEN v1.0.0.1',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
@@ -349,10 +347,10 @@ class HomeScreen extends StatelessWidget {
                             color: Colors.grey[500],
                           ),
                         ),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -362,7 +360,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ✨ Custom Modern Menu Card
+  // --------------------- Modern Card Menu ---------------------
   Widget _buildModernMenuCard({
     required BuildContext context,
     required String label,
@@ -375,102 +373,77 @@ class HomeScreen extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: [
+                color.withOpacity(0.09),
+                color.withOpacity(0.14),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.1),
+                color: color.withOpacity(0.09),
                 blurRadius: 15,
-                offset: const Offset(0, 5),
+                offset: const Offset(0, 4),
               ),
             ],
             border: Border.all(
-              color: Colors.grey[200]!,
+              color: Colors.white.withOpacity(0.03),
               width: 1,
             ),
           ),
           child: Stack(
             children: [
-              // Background Circle Decoration
-              Positioned(
-                top: -20,
-                right: -20,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-
-              // Content
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(15),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Icon Container
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: color.withOpacity(0.12),
+                        shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        icon,
-                        color: color,
-                        size: 32,
+                      child: Icon(icon, color: color, size: 28),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
                       ),
                     ),
-
-                    // Text Info
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                    const SizedBox(height: 5),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                      ),
                     ),
                   ],
                 ),
               ),
-
-              // Badge (Premium)
               if (badge != null)
                 Positioned(
-                  top: 8,
-                  right: 8,
+                  top: 13,
+                  right: 13,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
                       color: Colors.amber,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(7),
                     ),
                     child: Text(
                       badge,

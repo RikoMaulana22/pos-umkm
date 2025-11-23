@@ -8,6 +8,8 @@ import '../services/transaction_service.dart';
 import 'receipt_screen.dart';
 import '../../../shared/theme.dart';
 import '../models/cart_item_model.dart';
+import 'dart:io';
+import '../../settings/services/settings_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String storeId;
@@ -30,11 +32,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
   final TextEditingController _cashController = TextEditingController();
   final formatCurrency =
       NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
+  final SettingsService _settingsService = SettingsService();
 
   bool _isLoading = false;
   String _paymentMethod = "Tunai";
   double _cashReceived = 0.0;
   double _change = 0.0;
+  File? _qrisImage;
 
   late double _totalPrice;
 

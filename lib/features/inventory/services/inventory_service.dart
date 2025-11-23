@@ -1,27 +1,73 @@
+import 'dart:convert'; // Untuk memproses respon JSON dari Cloudinary
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart'
+    as http; // Paket HTTP untuk upload ke Cloudinary
 import '../models/product_model.dart';
 import '../models/product_variant_model.dart';
 
 class InventoryService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // =======================================================================
+  // ⚙️ KONFIGURASI CLOUDINARY (WAJIB DIISI)
+  // =======================================================================
+  // 1. Masuk ke Dashboard Cloudinary -> Copy "Cloud Name"
+  final String _cloudName = "dnw2t61ne";
+
+  // 2. Masuk ke Settings -> Upload -> Upload presets -> Copy nama preset (Mode: Unsigned)
+  final String _uploadPreset = "pos_umkm_preset";
 
   String? get _userId => _auth.currentUser?.uid;
 
-  /// ========================================================
-  /// ✅ TAMBAH PRODUK (Simpel / Varian)
-  /// ========================================================
+  /// ======================================================================
+  /// ☁️ HELPER: FUNGSI UPLOAD KE CLOUDINARY
+  /// ======================================================================
+  Future<String?> _uploadToCloudinary(Uint8List imageBytes) async {
+    try {
+      var uri =
+          Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/image/upload');
+
+      var request = http.MultipartRequest('POST', uri)
+        ..fields['upload_preset'] = _uploadPreset
+        ..files.add(http.MultipartFile.fromBytes('file', imageBytes,
+            filename:
+                'product_image.jpg' // Nama dummy, Cloudinary akan otomatis rename
+            ));
+
+      var response = await request.send();
+
+      if (response.statusCode == 200) {
+        final respStr = await response.stream.bytesToString();
+        final jsonMap = jsonDecode(respStr);
+        // Mengembalikan URL gambar yang aman (https)
+        return jsonMap['secure_url'];
+      } else {
+        print('⚠️ Gagal Upload ke Cloudinary. Status: ${response.statusCode}');
+        // Opsional: Baca body error untuk debugging
+        final errStr = await response.stream.bytesToString();
+        print('⚠️ Detail Error: $errStr');
+        return null;
+      }
+    } catch (e) {
+      print('⚠️ Error Koneksi Cloudinary: $e');
+      return null;
+    }
+  }
+
+  /// ======================================================================
+  /// ✅ TAMBAH PRODUK (MENGGUNAKAN CLOUDINARY)
+  /// ======================================================================
   Future<void> addProduct({
     required String name,
     required String storeId,
     required String categoryId,
     required String categoryName,
     Uint8List? imageBytes,
-    String? imageName,
+    String?
+        imageName, // Tidak dipakai lagi, kita generate otomatis di Cloudinary
     required bool isVariantProduct,
     double? hargaModal,
     double? hargaJual,
@@ -34,48 +80,23 @@ class InventoryService {
 
     String? downloadUrl;
 
-    // 1. LOGIKA UPLOAD GAMBAR
+    // 1. LOGIKA UPLOAD GAMBAR (KE CLOUDINARY)
     if (imageBytes != null && imageBytes.isNotEmpty) {
-      try {
-        // Buat nama file unik (Timestamp)
-        // Kita paksa ekstensi .jpg agar Android tidak bingung membaca format
-        final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      print("🔄 Memulai upload ke Cloudinary...");
+      downloadUrl = await _uploadToCloudinary(imageBytes);
 
-        // Pastikan folder aman (cegah error jika storeId kosong)
-        final String safeStoreId = storeId.isEmpty ? 'common' : storeId;
-        final String path = 'products/$safeStoreId/$fileName';
-
-        // Buat referensi ke lokasi storage
-        final Reference ref = _storage.ref().child(path);
-
-        // Set metadata agar file dikenali sebagai gambar
-        final metadata = SettableMetadata(
-            contentType: 'image/jpeg',
-            customMetadata: {'uploaded_by': _userId!});
-
-        // 🔥 INI KUNCINYA: KITA TAMPUNG TASK UPLOADNYA
-        final UploadTask uploadTask = ref.putData(imageBytes, metadata);
-
-        // ⏳ KITA TUNGGU (AWAIT) SAMPAI TASK SELESAI 100%
-        // snapshot berisi bukti bahwa file sudah ada di server
-        final TaskSnapshot snapshot = await uploadTask.whenComplete(() => null);
-
-        // ✅ AMBIL URL DARI SNAPSHOT (BUKAN DARI REF MANUAL)
-        // Ini menjamin file PASTI ADA sebelum kita minta URL-nya
-        downloadUrl = await snapshot.ref.getDownloadURL();
-
+      if (downloadUrl != null) {
         print("✅ Sukses Upload: $downloadUrl");
-      } catch (e) {
-        print("⚠️ Gagal Upload Gambar (Data produk tetap akan disimpan): $e");
-        // Kita biarkan downloadUrl null, jangan throw error agar user tidak perlu mengetik ulang
+      } else {
+        print("⚠️ Upload gagal, produk akan disimpan tanpa gambar.");
       }
     }
 
-    // 2. LOGIKA SIMPAN KE FIRESTORE (Tetap jalan meski gambar gagal)
+    // 2. LOGIKA SIMPAN DATA KE FIRESTORE
     try {
       final product = Product(
         name: name.trim(),
-        imageUrl: downloadUrl, // Akan null jika upload gagal/tidak ada gambar
+        imageUrl: downloadUrl, // URL dari Cloudinary
         createdBy: _userId!,
         categoryId: categoryId,
         categoryName: categoryName,
@@ -99,6 +120,9 @@ class InventoryService {
     }
   }
 
+  /// ======================================================================
+  /// 📦 AMBIL DAFTAR PRODUK
+  /// ======================================================================
   Stream<List<Product>> getProducts(String storeId, {String? categoryId}) {
     if (_userId == null) return Stream.value([]);
 
@@ -117,36 +141,28 @@ class InventoryService {
         .toList());
   }
 
+  /// ======================================================================
+  /// 🔄 UPDATE PRODUK (MENGGUNAKAN CLOUDINARY)
+  /// ======================================================================
   Future<void> updateProduct({
     required Product product,
     Uint8List? newImageBytes,
     String? newImageName,
   }) async {
     if (_userId == null) throw Exception("User belum login");
-    if (product.id == null) throw Exception("ID produk tidak valid");
+    if (product.id == null || product.id!.isEmpty)
+      throw Exception("ID produk tidak valid");
 
     try {
       String? newImageUrl = product.imageUrl;
 
-      // 🖼️ Ganti Gambar Jika Ada
-      if (newImageBytes != null &&
-          newImageBytes.isNotEmpty &&
-          newImageName != null) {
-        if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-          try {
-            await _storage.refFromURL(product.imageUrl!).delete();
-          } catch (_) {}
+      // Jika ada gambar baru, upload ke Cloudinary
+      if (newImageBytes != null && newImageBytes.isNotEmpty) {
+        print("🔄 Mengupload gambar baru ke Cloudinary...");
+        String? cloudUrl = await _uploadToCloudinary(newImageBytes);
+        if (cloudUrl != null) {
+          newImageUrl = cloudUrl;
         }
-
-        final fileExtension = newImageName.split('.').last.toLowerCase();
-        final fileName =
-            'products/${product.createdBy}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
-
-        final uploadTask = _storage.ref(fileName).putData(newImageBytes,
-            SettableMetadata(contentType: 'image/$fileExtension'));
-
-        final snapshot = await uploadTask.whenComplete(() {});
-        newImageUrl = await snapshot.ref.getDownloadURL();
       }
 
       // Data yang diperbarui
@@ -174,28 +190,29 @@ class InventoryService {
     }
   }
 
+  /// ======================================================================
+  /// 🗑️ HAPUS PRODUK
+  /// ======================================================================
   Future<void> deleteProduct(String productId) async {
     if (_userId == null) throw Exception("User belum login");
 
     try {
+      // Cek apakah produk ada
       final doc = await _firestore.collection('products').doc(productId).get();
       if (!doc.exists) throw Exception("Produk tidak ditemukan");
 
-      final data = doc.data()!;
-      final imageUrl = data['imageUrl'];
-
-      // Hapus gambar
-      if (imageUrl != null && imageUrl.isNotEmpty) {
-        try {
-          await _storage.refFromURL(imageUrl).delete();
-        } catch (_) {}
-      }
+      // CATATAN: Kita tidak menghapus gambar dari Cloudinary secara otomatis
+      // karena mode "Unsigned Upload" biasanya tidak mengizinkan delete via API
+      // demi keamanan. Gambar lama akan tetap ada di Cloud (tidak masalah,
+      // kapasitas Cloudinary besar). Fokus kita hanya hapus data di Database.
 
       await _firestore.collection('products').doc(productId).delete();
     } catch (e) {
       throw Exception("Gagal menghapus produk: $e");
     }
   }
+
+  // ... (Fungsi adjustStock & getProductBySKU tetap sama, tidak perlu diubah) ...
 
   Future<void> adjustStock(String productId, int adjustmentAmount) async {
     if (_userId == null) throw Exception("User belum login");
