@@ -1,4 +1,3 @@
-// lib/features/pos/screens/payment_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +8,9 @@ import 'receipt_screen.dart';
 import '../../../shared/theme.dart';
 import '../models/cart_item_model.dart';
 import 'dart:io';
+// Import SettingsService & QrisService
 import '../../settings/services/settings_service.dart';
+import '../../settings/services/qris_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String storeId;
@@ -34,11 +35,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
       NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
   final SettingsService _settingsService = SettingsService();
 
+  // Tambahkan QrisService dan variabel untuk URL QRIS
+  final QrisService _qrisService = QrisService();
+  String? _customQrisUrl;
+
   bool _isLoading = false;
   String _paymentMethod = "Tunai";
   double _cashReceived = 0.0;
   double _change = 0.0;
-  File? _qrisImage;
 
   late double _totalPrice;
 
@@ -49,6 +53,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
     super.initState();
     _totalPrice = Provider.of<CartProvider>(context, listen: false).totalPrice;
     _cashController.addListener(_calculateChange);
+
+    // Panggil fungsi untuk memuat QRIS saat layar dibuka
+    _loadQrisUrl();
+  }
+
+  // Fungsi untuk mengambil URL QRIS yang tersimpan
+  Future<void> _loadQrisUrl() async {
+    final url = await _qrisService.loadQrisUrl();
+    if (mounted) {
+      setState(() {
+        _customQrisUrl = url;
+      });
+    }
   }
 
   void _calculateChange() {
@@ -296,6 +313,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  // Modifikasi bagian ini untuk menampilkan gambar QRIS Custom
   Widget _buildQrisPayment() {
     return Column(
       children: [
@@ -304,10 +322,39 @@ class _PaymentScreenState extends State<PaymentScreen> {
           decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(12)),
-          child: Image.asset(
-            'assets/images/qris_dana.jpg',
-            width: 250,
-          ),
+          child: _customQrisUrl != null && _customQrisUrl!.isNotEmpty
+              ? Image.network(
+                  _customQrisUrl!,
+                  width: 250,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: 250,
+                      height: 250,
+                      alignment: Alignment.center,
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Column(
+                      children: const [
+                        Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                        Text("Gagal memuat gambar",
+                            style: TextStyle(color: Colors.grey)),
+                      ],
+                    );
+                  },
+                )
+              : Image.asset(
+                  'assets/images/qris_dana.jpg', // Fallback ke default jika tidak ada custom
+                  width: 250,
+                ),
         ),
         const SizedBox(height: 16),
         const Text("Scan QRIS untuk membayar",

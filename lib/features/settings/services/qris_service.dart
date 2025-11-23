@@ -1,21 +1,27 @@
-import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart'; // Pastikan import ini ada
 
 class QrisService {
-  final String cloudName =
-      "dnw2t61ne"; // <- Ganti dengan cloud name Cloudinary kamu
-  final String uploadPreset =
-      "pos_umkm_preset"; // <- Ganti dengan upload preset Cloudinary kamu
+  final String cloudName = "dnw2t61ne";
+  final String uploadPreset = "pos_umkm_preset";
 
-  Future<String?> uploadQrisToCloudinary(File imageFile) async {
+  // UBAH parameter dari File menjadi XFile
+  Future<String?> uploadQrisToCloudinary(XFile imageFile) async {
     final url =
         Uri.parse("https://api.cloudinary.com/v1_1/$cloudName/image/upload");
 
-    final request = http.MultipartRequest('POST', url)
-      ..fields['upload_preset'] = uploadPreset
-      ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+    final request = http.MultipartRequest('POST', url);
+    request.fields['upload_preset'] = uploadPreset;
+
+    // PERBAIKAN: Gunakan fromBytes agar kompatibel dengan Web & Mobile
+    final bytes = await imageFile.readAsBytes();
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      bytes,
+      filename: imageFile.name,
+    ));
 
     final response = await request.send();
     if (response.statusCode == 200) {

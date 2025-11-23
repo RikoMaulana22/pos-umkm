@@ -256,8 +256,8 @@ class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen>
           // ✨ Message Text
           Text(
             isAdmin
-                ? 'Masa berlaku langganan Anda telah berakhir. Untuk melanjutkan menggunakan semua fitur POS UMKM, silakan perbarui paket langganan Anda sekarang.'
-                : 'Langganan toko ini telah berakhir. Hanya Admin atau Owner toko yang dapat memperbarui paket. Silakan hubungi Admin/Owner Anda untuk mengaktifkan kembali layanan.',
+                ? 'Masa berlaku langganan Anda telah berakhir. Untuk melanjutkan menggunakan semua fitur EZZEN - Point Of Sale, silakan perbarui paket langganan Anda sekarang.'
+                : 'Langganan toko ini telah berakhir. Hanya Admin  yang dapat memperbarui paket. Silakan hubungi Admin Anda untuk mengaktifkan kembali layanan.',
             style: TextStyle(
               fontSize: 13,
               color: Colors.grey[700],

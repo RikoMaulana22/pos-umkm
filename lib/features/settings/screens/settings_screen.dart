@@ -1,5 +1,7 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io'; // Masih dibutuhkan untuk Printer (Android/iOS), tapi tidak dipakai untuk QRIS
+import 'dart:typed_data'; // PENTING: Untuk Uint8List
+
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:erp_umkm/features/settings/screens/contact_us_screen.dart';
 import 'package:flutter/material.dart';
@@ -9,9 +11,7 @@ import '../models/store_model.dart';
 import '../services/settings_service.dart';
 import '../../auth/widgets/custom_textfield.dart';
 import '../services/printer_service.dart';
-import 'package:erp_umkm/features/settings/services/qris_service.dart';
-import 'dart:io';
-import 'dart:async';
+import '../../settings/services/qris_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String storeId;
@@ -28,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late Future<StoreModel> _storeDetailsFuture;
   bool _isLoading = false;
 
+  // Printer Variables
   final PrinterService _printerService = PrinterService();
   final BlueThermalPrinter _printer = BlueThermalPrinter.instance;
   String? _savedPrinterName;
@@ -35,10 +36,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isPrinterBusy = false;
   String _printerStatusMessage = "";
 
-  // QRIS image picker
+  // QRIS Variables
   String? _qrisUrl;
   final QrisService _qrisService = QrisService();
-  File? _qrisImage;
+  Uint8List?
+      _qrisImageBytes; // GANTI: Menggunakan bytes untuk preview lintas platform
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -51,35 +53,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
       storeNameController.text = store.name;
     });
     _loadSavedPrinter();
-    // TODO: load QRIS image from server if needed
   }
 
   Future<void> _loadQrisUrl() async {
     final url = await _qrisService.loadQrisUrl();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _qrisUrl = url;
       });
+    }
   }
 
+  // UPDATE: Logic Picker & Upload Support Web
   Future<void> _pickQrisImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() => _isLoading = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mengupload QRIS ke Cloudinary...')));
-      final url =
-          await _qrisService.uploadQrisToCloudinary(File(pickedFile.path));
-      setState(() => _isLoading = false);
-      if (url != null) {
+    try {
+      final XFile? pickedFile =
+          await _picker.pickImage(source: ImageSource.gallery);
+
+      if (pickedFile != null) {
+        // 1. Baca bytes untuk preview (Mobile & Web aman)
+        final bytes = await pickedFile.readAsBytes();
+
         setState(() {
-          _qrisUrl = url;
+          _qrisImageBytes = bytes;
+          _isLoading = true;
         });
-        await _qrisService.saveQrisUrl(url);
-        _showSuccessSnackBar("QRIS berhasil diupdate.");
-      } else {
-        _showErrorSnackBar("Gagal upload QRIS.");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Mengupload QRIS ke Cloudinary...')));
+
+        // 2. Upload menggunakan XFile (dikirim ke service baru)
+        final url = await _qrisService.uploadQrisToCloudinary(pickedFile);
+
+        setState(() => _isLoading = false);
+
+        if (url != null) {
+          setState(() {
+            _qrisUrl = url;
+            // Kosongkan bytes agar tampilan beralih ke URL (opsional,
+            // tapi membiarkan bytes tetap ada sebagai preview instan lebih mulus)
+          });
+          await _qrisService.saveQrisUrl(url);
+          _showSuccessSnackBar("QRIS berhasil diupdate.");
+        } else {
+          _showErrorSnackBar("Gagal upload QRIS.");
+        }
       }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorSnackBar("Error picking image: $e");
     }
   }
 
@@ -91,15 +113,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-// Fungsi dialog untuk memilih dan connect Printer
   void _showPrinterDialog() {
-    // Silakan gunakan versi logic milik kamu; ini contoh yang simple
     _showInfoSnackBar(
         "Fitur scanner perangkat printer belum diimplementasi detail di contoh singkat ini.");
-    // Implementasi scanner printer dengan BlueThermalPrinter instance milik kamu (lihat kode kamu sebelumnya)
   }
 
-// Fungsi test print printer thermal
   Future<void> _runTestPrint() async {
     if (_savedPrinterAddress == null || _savedPrinterAddress!.isEmpty) {
       _showErrorSnackBar("Tidak ada printer tersimpan");
@@ -118,7 +136,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await _printer.connect(device);
       }
 
-      // Test print isi QRIS
       _printer.printCustom("Test Print Berhasil!", 1, 1);
       _printer.printNewLine();
       _printer.printCustom("POS UMKM Siap Digunakan", 0, 1);
@@ -140,7 +157,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-// Fungsi untuk disconnect printer
   void _disconnectPrinter() async {
     setState(() {
       _isPrinterBusy = true;
@@ -175,7 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         widget.storeId,
         storeNameController.text,
       );
-      // TODO: upload QRIS image logic here if needed
+
       if (!mounted) return;
       _showSuccessSnackBar("Pengaturan berhasil disimpan!");
       Navigator.pop(context);
@@ -262,7 +278,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // QRIS section
+  // Helper untuk menampilkan gambar QRIS
+  Widget _buildQrisImageWidget() {
+    // 1. Prioritas: Gambar yang baru dipilih user (Preview lokal)
+    if (_qrisImageBytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.memory(
+          _qrisImageBytes!,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    // 2. Prioritas Kedua: Gambar URL yang tersimpan di cloud
+    if (_qrisUrl != null && _qrisUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          _qrisUrl!,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: 120,
+              height: 120,
+              alignment: Alignment.center,
+              color: Colors.grey[100],
+              child: SizedBox(
+                width: 30,
+                height: 30,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 120,
+              height: 120,
+              color: Colors.grey[200],
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            );
+          },
+        ),
+      );
+    }
+
+    // 3. Default: Placeholder jika belum ada gambar sama sekali
+    return Container(
+      width: 120,
+      height: 120,
+      color: Colors.grey[200],
+      child: Center(
+        child: Icon(Icons.qr_code_2_rounded, size: 44, color: Colors.grey[400]),
+      ),
+    );
+  }
+
   Widget _buildQrisSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,28 +368,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _qrisImage == null
-                  ? Container(
-                      width: 120,
-                      height: 120,
-                      color: Colors.grey[200],
-                      child: Center(
-                        child: Icon(Icons.qr_code_2_rounded,
-                            size: 44, color: Colors.grey[400]),
-                      ),
-                    )
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(_qrisImage!,
-                          width: 120, height: 120, fit: BoxFit.cover),
-                    ),
+              _buildQrisImageWidget(),
               const SizedBox(height: 12),
               SizedBox(
                 width: 150,
                 child: ElevatedButton.icon(
                   onPressed: _pickQrisImage,
-                  icon: Icon(Icons.upload_rounded),
-                  label: Text("Upload QRIS"),
+                  icon: const Icon(Icons.upload_rounded),
+                  label: const Text("Upload QRIS"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue[700],
                     foregroundColor: Colors.white,
@@ -325,7 +393,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Printer settings card (buat sesuai existing kamu)
   Widget _buildPrinterSettingsCard() {
     return Container(
       decoration: BoxDecoration(
@@ -374,7 +441,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Text(
                         _savedPrinterName ?? "Hubungkan Printer",
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
@@ -509,9 +576,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-
-  // TODO: tambahkan modal printer dialog, fungsi-fungsi printer lain
-  // seperti di kode kamu sebelumnya. Tidak perlu diubah fungsinya.
 
   @override
   Widget build(BuildContext context) {

@@ -33,20 +33,6 @@ class SettingsService {
     }
   }
 
-  Future<void> saveQrisImage(File image) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('qris_image_path', image.path);
-    // Untuk upload ke server, tambahkan logic di sini
-  }
-
-  // Ambil gambar QRIS
-  Future<File?> loadQrisImage() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final path = prefs.getString('qris_image_path');
-    if (path != null) return File(path);
-    return null;
-  }
-
   // TODO: Nanti kita tambahkan fungsi untuk pengaturan printer
   // TODO: Nanti kita tambahkan fungsi untuk pengaturan pajak
 }

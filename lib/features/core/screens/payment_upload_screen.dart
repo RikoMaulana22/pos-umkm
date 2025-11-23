@@ -1,12 +1,13 @@
 // lib/features/core/screens/payment_upload_screen.dart
+import 'dart:convert'; // Tambahan untuk JSON decode
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http; // Tambahan untuk HTTP Request
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../shared/theme.dart';
 import '../../inventory/widgets/image_picker_widget.dart';
-import '../../auth/widgets/custom_button.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PaymentUploadScreen extends StatefulWidget {
   final String storeId;
@@ -27,7 +28,46 @@ class PaymentUploadScreen extends StatefulWidget {
 class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
   Uint8List? _imageBytes;
   String? _imageName;
+
+  // Progress indicator: null = idle, 0.0-1.0 = progress
   double? _uploadProgress;
+
+  // =======================================================================
+  // ⚙️ KONFIGURASI CLOUDINARY
+  // =======================================================================
+  final String _cloudName = "dnw2t61ne";
+  final String _uploadPreset = "pos_umkm_preset";
+
+  // =======================================================================
+  // ☁️ FUNGSI UPLOAD KE CLOUDINARY
+  // =======================================================================
+  Future<String?> _uploadToCloudinary(Uint8List imageBytes) async {
+    try {
+      var uri =
+          Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/image/upload');
+
+      var request = http.MultipartRequest('POST', uri)
+        ..fields['upload_preset'] = _uploadPreset
+        ..files.add(http.MultipartFile.fromBytes('file', imageBytes,
+            filename: 'payment_proof.jpg'));
+
+      // Kirim request
+      var response = await request.send();
+
+      if (response.statusCode == 200) {
+        final respStr = await response.stream.bytesToString();
+        final jsonMap = jsonDecode(respStr);
+        return jsonMap['secure_url']; // URL HTTPS aman
+      } else {
+        debugPrint(
+            '⚠️ Gagal Upload ke Cloudinary. Status: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error Koneksi Cloudinary: $e');
+      return null;
+    }
+  }
 
   Future<void> _submitProof() async {
     if (_imageBytes == null || _imageName == null) {
@@ -36,65 +76,51 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
     }
 
     setState(() {
-      _uploadProgress = 0.0;
+      _uploadProgress = 0.2; // Set progress awal (simulasi loading)
     });
 
     try {
-      // 1. Upload Gambar ke Firebase Storage
-      final String fileName =
-          'payment_proofs/${widget.storeId}/${DateTime.now().millisecondsSinceEpoch}-${_imageName!}';
-      final ref = FirebaseStorage.instance.ref().child(fileName);
-      final metadata = SettableMetadata(contentType: 'image/jpeg');
+      // 1. Upload Gambar ke Cloudinary
+      // Note: HTTP request standar tidak memiliki stream progress yang mudah seperti Firebase SDK,
+      // jadi kita gunakan indikator loading indeterminate atau simulasi.
 
-      final uploadTask = ref.putData(_imageBytes!, metadata);
+      final downloadUrl = await _uploadToCloudinary(_imageBytes!);
 
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        if (mounted) {
-          setState(() {
-            _uploadProgress = snapshot.bytesTransferred / snapshot.totalBytes;
-          });
-        }
+      if (downloadUrl == null) {
+        throw Exception("Gagal mengupload gambar ke server.");
+      }
+
+      setState(() {
+        _uploadProgress = 0.8; // Update progress setelah gambar terupload
       });
 
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      // 2. Buat Dokumen di 'upgradeRequests'
+      // 2. Buat Dokumen di 'upgradeRequests' (Firestore)
       await FirebaseFirestore.instance.collection('upgradeRequests').add({
         'storeId': widget.storeId,
         'packageName': widget.packageName,
         'price': widget.price,
         'status': 'pending',
         'requestedAt': FieldValue.serverTimestamp(),
-        'proofOfPaymentURL': downloadUrl,
+        'proofOfPaymentURL': downloadUrl, // URL dari Cloudinary
+      });
+
+      setState(() {
+        _uploadProgress = 1.0; // Selesai
       });
 
       if (!mounted) return;
 
       // Tampilkan dialog sukses
       _showSuccessDialog();
-    } on FirebaseException catch (e) {
-      if (!mounted) return;
-      String message = "Upload Gagal: ";
-      switch (e.code) {
-        case 'storage/unauthorized':
-          message += "Anda tidak memiliki izin.";
-          break;
-        case 'storage/canceled':
-          message += "Upload dibatalkan.";
-          break;
-        case 'storage/retry-limit-exceeded':
-          message += "Waktu habis, koneksi buruk. Coba lagi.";
-          break;
-        default:
-          message += "Terjadi error jaringan. Coba lagi nanti.";
-      }
-      _showErrorSnackBar(message);
     } catch (e) {
       if (!mounted) return;
       _showErrorSnackBar("Gagal mengirim permintaan: ${e.toString()}");
     } finally {
       if (mounted) {
+        // Delay sedikit agar user melihat progress 100% sebelum tertutup
+        if (_uploadProgress == 1.0) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
         setState(() {
           _uploadProgress = null;
         });
@@ -210,9 +236,10 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                    Navigator.pop(context);
+                    Navigator.pop(context); // Tutup Dialog
+                    Navigator.pop(context); // Kembali dari Upload Screen
+                    Navigator.pop(
+                        context); // Kembali ke Payment Screen (opsional)
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1B5E20),
@@ -305,11 +332,12 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(
-                          value: _uploadProgress,
+                          value:
+                              _uploadProgress, // Bisa null untuk indeterminate jika diinginkan
                           minHeight: 8,
                           backgroundColor: Colors.grey[300],
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            _uploadProgress! < 1
+                            (_uploadProgress ?? 0) < 1
                                 ? const Color(0xFF1B5E20)
                                 : Colors.green,
                           ),
@@ -317,7 +345,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Mengupload... ${(_uploadProgress! * 100).toStringAsFixed(0)}%',
+                        'Mengupload... ${((_uploadProgress ?? 0) * 100).toStringAsFixed(0)}%',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
@@ -361,7 +389,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
             ),
           ),
 
-          // ✨ Upload Loading Overlay
+          // ✨ Upload Loading Overlay (Optional, jika ingin memblokir layar)
           if (_uploadProgress != null && _uploadProgress! < 1)
             Container(
               color: Colors.black.withOpacity(0.5),
@@ -379,7 +407,9 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                         width: 50,
                         height: 50,
                         child: CircularProgressIndicator(
-                          value: _uploadProgress,
+                          // Jika HTTP request tidak support stream progress,
+                          // gunakan null agar loading berputar terus
+                          value: null,
                           valueColor: AlwaysStoppedAnimation<Color>(
                             const Color(0xFF1B5E20),
                           ),
@@ -387,9 +417,9 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        '${(_uploadProgress! * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(
+                      const Text(
+                        'Memproses...',
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: Colors.black87,
@@ -397,7 +427,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Mengupload bukti...',
+                        'Mengupload ke server',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],

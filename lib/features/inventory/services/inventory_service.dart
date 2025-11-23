@@ -12,12 +12,9 @@ class InventoryService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // =======================================================================
-  // ⚙️ KONFIGURASI CLOUDINARY (WAJIB DIISI)
+  // ⚙️ KONFIGURASI CLOUDINARY
   // =======================================================================
-  // 1. Masuk ke Dashboard Cloudinary -> Copy "Cloud Name"
   final String _cloudName = "dnw2t61ne";
-
-  // 2. Masuk ke Settings -> Upload -> Upload presets -> Copy nama preset (Mode: Unsigned)
   final String _uploadPreset = "pos_umkm_preset";
 
   String? get _userId => _auth.currentUser?.uid;
@@ -33,22 +30,16 @@ class InventoryService {
       var request = http.MultipartRequest('POST', uri)
         ..fields['upload_preset'] = _uploadPreset
         ..files.add(http.MultipartFile.fromBytes('file', imageBytes,
-            filename:
-                'product_image.jpg' // Nama dummy, Cloudinary akan otomatis rename
-            ));
+            filename: 'product_image.jpg'));
 
       var response = await request.send();
 
       if (response.statusCode == 200) {
         final respStr = await response.stream.bytesToString();
         final jsonMap = jsonDecode(respStr);
-        // Mengembalikan URL gambar yang aman (https)
-        return jsonMap['secure_url'];
+        return jsonMap['secure_url']; // Mengembalikan URL HTTPS
       } else {
         print('⚠️ Gagal Upload ke Cloudinary. Status: ${response.statusCode}');
-        // Opsional: Baca body error untuk debugging
-        final errStr = await response.stream.bytesToString();
-        print('⚠️ Detail Error: $errStr');
         return null;
       }
     } catch (e) {
@@ -58,7 +49,7 @@ class InventoryService {
   }
 
   /// ======================================================================
-  /// ✅ TAMBAH PRODUK (MENGGUNAKAN CLOUDINARY)
+  /// ✅ TAMBAH PRODUK
   /// ======================================================================
   Future<void> addProduct({
     required String name,
@@ -66,8 +57,7 @@ class InventoryService {
     required String categoryId,
     required String categoryName,
     Uint8List? imageBytes,
-    String?
-        imageName, // Tidak dipakai lagi, kita generate otomatis di Cloudinary
+    String? imageName,
     required bool isVariantProduct,
     double? hargaModal,
     double? hargaJual,
@@ -80,23 +70,16 @@ class InventoryService {
 
     String? downloadUrl;
 
-    // 1. LOGIKA UPLOAD GAMBAR (KE CLOUDINARY)
+    // 1. LOGIKA UPLOAD GAMBAR
     if (imageBytes != null && imageBytes.isNotEmpty) {
-      print("🔄 Memulai upload ke Cloudinary...");
       downloadUrl = await _uploadToCloudinary(imageBytes);
-
-      if (downloadUrl != null) {
-        print("✅ Sukses Upload: $downloadUrl");
-      } else {
-        print("⚠️ Upload gagal, produk akan disimpan tanpa gambar.");
-      }
     }
 
     // 2. LOGIKA SIMPAN DATA KE FIRESTORE
     try {
       final product = Product(
         name: name.trim(),
-        imageUrl: downloadUrl, // URL dari Cloudinary
+        imageUrl: downloadUrl,
         createdBy: _userId!,
         categoryId: categoryId,
         categoryName: categoryName,
@@ -112,8 +95,11 @@ class InventoryService {
       final productData = product.toMap()
         ..addAll({
           'storeId': storeId,
+          'createdAt': FieldValue
+              .serverTimestamp(), // Tambahkan timestamp agar bisa di-sort
         });
 
+      // PENTING: Menggunakan collection 'products' di root
       await _firestore.collection('products').add(productData);
     } catch (e) {
       throw Exception("Gagal menyimpan data ke database: $e");
@@ -126,6 +112,7 @@ class InventoryService {
   Stream<List<Product>> getProducts(String storeId, {String? categoryId}) {
     if (_userId == null) return Stream.value([]);
 
+    // PENTING: Query ke collection 'products' di root
     Query query =
         _firestore.collection('products').where('storeId', isEqualTo: storeId);
 
@@ -133,6 +120,7 @@ class InventoryService {
       query = query.where('categoryId', isEqualTo: categoryId);
     }
 
+    // Sort berdasarkan nama (pastikan index Firestore sudah dibuat jika error)
     query = query.orderBy('name');
 
     return query.snapshots().map((snapshot) => snapshot.docs
@@ -142,7 +130,7 @@ class InventoryService {
   }
 
   /// ======================================================================
-  /// 🔄 UPDATE PRODUK (MENGGUNAKAN CLOUDINARY)
+  /// 🔄 UPDATE PRODUK
   /// ======================================================================
   Future<void> updateProduct({
     required Product product,
@@ -150,15 +138,15 @@ class InventoryService {
     String? newImageName,
   }) async {
     if (_userId == null) throw Exception("User belum login");
-    if (product.id == null || product.id!.isEmpty)
+    if (product.id == null || product.id!.isEmpty) {
       throw Exception("ID produk tidak valid");
+    }
 
     try {
       String? newImageUrl = product.imageUrl;
 
       // Jika ada gambar baru, upload ke Cloudinary
       if (newImageBytes != null && newImageBytes.isNotEmpty) {
-        print("🔄 Mengupload gambar baru ke Cloudinary...");
         String? cloudUrl = await _uploadToCloudinary(newImageBytes);
         if (cloudUrl != null) {
           newImageUrl = cloudUrl;
@@ -169,7 +157,7 @@ class InventoryService {
       final updatedData = {
         'name': product.name.trim(),
         'imageUrl': newImageUrl,
-        'timestamp': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
         'categoryId': product.categoryId,
         'categoryName': product.categoryName,
         'isVariantProduct': product.isVariantProduct,
@@ -181,6 +169,7 @@ class InventoryService {
         'sku': product.sku,
       };
 
+      // PENTING: Update di collection 'products'
       await _firestore
           .collection('products')
           .doc(product.id)
@@ -191,29 +180,21 @@ class InventoryService {
   }
 
   /// ======================================================================
-  /// 🗑️ HAPUS PRODUK
+  /// 🗑️ HAPUS PRODUK (DIPERBAIKI)
   /// ======================================================================
-  Future<void> deleteProduct(String productId) async {
-    if (_userId == null) throw Exception("User belum login");
-
+  Future<void> deleteProduct(String storeId, String productId) async {
     try {
-      // Cek apakah produk ada
-      final doc = await _firestore.collection('products').doc(productId).get();
-      if (!doc.exists) throw Exception("Produk tidak ditemukan");
-
-      // CATATAN: Kita tidak menghapus gambar dari Cloudinary secara otomatis
-      // karena mode "Unsigned Upload" biasanya tidak mengizinkan delete via API
-      // demi keamanan. Gambar lama akan tetap ada di Cloud (tidak masalah,
-      // kapasitas Cloudinary besar). Fokus kita hanya hapus data di Database.
-
+      // PERBAIKAN: Menggunakan path yang sama dengan addProduct & getProducts
+      // Yaitu collection 'products' di root, bukan di dalam stores.
       await _firestore.collection('products').doc(productId).delete();
     } catch (e) {
-      throw Exception("Gagal menghapus produk: $e");
+      throw Exception('Gagal menghapus produk: $e');
     }
   }
 
-  // ... (Fungsi adjustStock & getProductBySKU tetap sama, tidak perlu diubah) ...
-
+  /// ======================================================================
+  /// 🔢 ATUR STOK
+  /// ======================================================================
   Future<void> adjustStock(String productId, int adjustmentAmount) async {
     if (_userId == null) throw Exception("User belum login");
     if (adjustmentAmount == 0) return;
@@ -227,6 +208,9 @@ class InventoryService {
     }
   }
 
+  /// ======================================================================
+  /// 🔎 CARI PRODUK BY SKU
+  /// ======================================================================
   Future<Product?> getProductBySKU(String storeId, String sku) async {
     if (_userId == null) throw Exception("User belum login");
 

@@ -46,6 +46,57 @@ class _InventoryScreenState extends State<InventoryScreen> {
     super.dispose();
   }
 
+  // ✨ Fungsi untuk menampilkan dialog konfirmasi dan menghapus produk
+  void _confirmDelete(BuildContext context, Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Produk?'),
+        content: Text(
+            'Apakah Anda yakin ingin menghapus "${product.name}"? Data yang dihapus tidak dapat dikembalikan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Tutup dialog
+
+              try {
+                // Pastikan method deleteProduct sudah ada di InventoryService
+                await _inventoryService.deleteProduct(widget.storeId, product.id!);
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Produk berhasil dihapus'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('❌ Gagal menghapus: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -520,19 +571,56 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
               ),
 
-              // ✨ Edit Icon
+              // ✨ ACTION BUTTONS (Edit & Delete)
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.edit_rounded,
-                  color: primaryColor,
-                  size: 20,
-                ),
+              Column(
+                children: [
+                  // Tombol Edit
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditProductScreen(
+                            product: product,
+                            storeId: widget.storeId,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.edit_rounded,
+                        color: primaryColor,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Tombol Hapus
+                  GestureDetector(
+                    onTap: () => _confirmDelete(context, product),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

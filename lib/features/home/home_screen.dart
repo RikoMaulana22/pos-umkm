@@ -66,8 +66,9 @@ class HomeScreen extends StatelessWidget {
 
     // Get user info
     final user = FirebaseAuth.instance.currentUser;
-    final userName = user?.displayName ?? user?.email?.split('@')[0] ?? 'User';
-
+    final userName = user?.displayName != null && user!.displayName!.isNotEmpty
+        ? user.displayName
+        : user?.email?.split('@')[0] ?? storeId ?? 'User';
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Column(
@@ -141,7 +142,7 @@ class HomeScreen extends StatelessWidget {
                               )),
                           const SizedBox(height: 4),
                           Text(
-                            userName,
+                            userName ?? 'User',
                             style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,

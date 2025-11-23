@@ -8,12 +8,11 @@ environment:
   sdk: '>=3.4.0 <4.0.0'
 
 #==================================================
-# DEPENDENCIES (PAKET APLIKASI)
+# DEPENDENCIES (PAKET APLIKASI UTAMA)
 #==================================================
 dependencies:
   flutter:
     sdk: flutter
-
   http: ^1.6.0
   # Firebase (Backend)
   firebase_core: ^4.2.1
@@ -28,9 +27,8 @@ dependencies:
 
   intl: ^0.20.2
   
-  # === INI YANG DIUBAH ===
-  # Menggunakan paket yang benar sesuai kode Anda
-  blue_thermal_printer: ^1.2.3 # Atau versi terbaru yang kompatibel
+  # Printer
+  blue_thermal_printer: ^1.2.3
 
   # State Management
   provider: ^6.1.5+1
@@ -41,40 +39,44 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   url_launcher: ^6.3.2
- 
+  
   pdf: ^3.11.3
   path_provider: ^2.1.5
   open_filex: ^4.7.0
   permission_handler: ^12.0.1
 
 #==================================================
-# DEV DEPENDENCIES (PAKET UNTUK DEVELOPMENT)
+# DEV DEPENDENCIES (ALAT PENGEMBANGAN)
 #==================================================
 dev_dependencies:
   flutter_test:
     sdk: flutter
   
   flutter_lints: ^6.0.0
+  
+  # PENTING: Package ini sebaiknya di dev_dependencies
+  flutter_launcher_icons: ^0.14.4
 
 #==================================================
 # PENGATURAN FLUTTER
 #==================================================
 flutter:
-  # Baris 'uses-material-design' harus menjorok 2 spasi
   uses-material-design: true
 
-  # === INI BAGIAN YANG DIPERBAIKI ===
-  # 'assets:' harus sejajar (indentasi sama) dengan 'uses-material-design'
   assets:
-    # Baris ini harus menjorok 2 spasi di bawah 'assets:'
     - assets/images/
     - assets/images/qris_dana.jpg
-  
-  # 'fonts:' harus sejajar dengan 'assets:'
-  # fonts:
-  #   - family: Poppins
-  #     fonts:
-  #       - asset: fonts/Poppins-Regular.ttf
-  #       - asset: fonts/Poppins-Bold.ttf
-  #         weight: 700
-  
+
+#==================================================
+# KONFIGURASI ICON (HARUS DI PALING KIRI/ROOT)
+#==================================================
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/Ezzen_Icons.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/Ezzen_Icons.png"
+    background_color: "#ffffff" # Saya beri default putih agar valid
+    theme_color: "#ffffff"

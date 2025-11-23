@@ -19,9 +19,9 @@ class _SubscriptionPackageScreenState extends State<SubscriptionPackageScreen> {
   @override
   Widget build(BuildContext context) {
     final prices = {
-      'bronze': 50000.0,
-      'silver': 150000.0,
-      'gold': 300000.0,
+      'bronze': 129000.0,
+      'silver': 249000.0,
+      'gold': 359000.0,
     };
 
     return Scaffold(

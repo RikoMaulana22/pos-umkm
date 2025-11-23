@@ -236,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
           child: Image.asset(
-            'assets/images/ezzen_logos.png',
+            'assets/images/ezzenlogo.png',
             fit: BoxFit.contain,
           ),
         ),
