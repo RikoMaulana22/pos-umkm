@@ -1,6 +1,7 @@
 // lib/features/superadmin/screens/add_store_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/superadmin_service.dart';
 import '../../auth/widgets/custom_button.dart';
 import '../../auth/widgets/custom_textfield.dart';
@@ -15,6 +16,8 @@ class AddStoreScreen extends StatefulWidget {
 class _AddStoreScreenState extends State<AddStoreScreen> {
   final SuperAdminService _service = SuperAdminService();
   final TextEditingController storeNameController = TextEditingController();
+  final TextEditingController locationController =
+      TextEditingController(); // Field lokasi
   final TextEditingController adminUsernameController = TextEditingController();
   final TextEditingController adminEmailController = TextEditingController();
   final TextEditingController adminPasswordController = TextEditingController();
@@ -25,6 +28,8 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
   bool _isLoading = false;
   bool _showPassword = false;
   String _selectedPackage = 'bronze';
+  Position? _currentPosition;
+
   final Color superAdminColor = Colors.red[800]!;
 
   @override
@@ -39,6 +44,7 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
   @override
   void dispose() {
     storeNameController.dispose();
+    locationController.dispose();
     adminUsernameController.dispose();
     adminEmailController.dispose();
     adminPasswordController.dispose();
@@ -74,8 +80,42 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
     }
   }
 
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+    // Cek layanan lokasi
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _showErrorSnackBar("Location services are disabled.");
+      return;
+    }
+    // Cek permission
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _showErrorSnackBar("Location permissions are denied.");
+        return;
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      _showErrorSnackBar("Location permissions are permanently denied.");
+      return;
+    }
+
+    // Ambil posisi perangkat
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+
+    setState(() {
+      _currentPosition = position;
+      locationController.text = "${position.latitude}, ${position.longitude}";
+    });
+  }
+
   void _saveStore() async {
     if (storeNameController.text.isEmpty ||
+        locationController.text.isEmpty ||
         adminUsernameController.text.isEmpty ||
         adminEmailController.text.isEmpty ||
         adminPasswordController.text.isEmpty ||
@@ -105,11 +145,11 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
         adminPassword: adminPasswordController.text,
         adminUsername: adminUsernameController.text,
         storeName: storeNameController.text,
+        location: locationController.text,
         expiryDate: _selectedExpiryDate!,
         subscriptionPrice: double.parse(priceController.text),
         subscriptionPackage: _selectedPackage,
       );
-
       if (!mounted) return;
       _showSuccessSnackBar("Toko dan Admin berhasil dibuat!");
       Navigator.pop(context);
@@ -369,6 +409,35 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
             controller: storeNameController,
             hintText: "Nama Toko (contoh: Toko Makmur)",
           ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            controller: locationController,
+            hintText: "Lokasi Toko (otomatis atau manual)",
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: _getCurrentLocation,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[900],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 1,
+                ),
+                icon: const Icon(Icons.my_location),
+                label: const Text("Ambil Lokasi Otomatis"),
+              ),
+              const SizedBox(width: 16),
+              if (_currentPosition != null)
+                Text(
+                  "Lokasi didapat ✔️",
+                  style: TextStyle(color: Colors.green[700], fontSize: 12),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -532,7 +601,6 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
               }
             },
           ),
-
           const SizedBox(height: 16),
 
           // Price Field
@@ -576,7 +644,6 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
 
           // Expiry Date Field
@@ -618,7 +685,6 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
             ),
             onTap: () => _selectDate(context),
           ),
-
           const SizedBox(height: 12),
 
           // Info Note

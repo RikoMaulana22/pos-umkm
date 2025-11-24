@@ -9,8 +9,10 @@ import 'superadmin_revenue_screen.dart';
 import '../models/upgrade_request_model.dart';
 import 'upgrade_requests_screen.dart';
 
-// 👇 Tambahan untuk pengaduan customer
+// 👇 Tambahan untuk pengaduan customer & fitur baru
 import 'complaints_screen.dart';
+import 'manage_packages_screen.dart';
+import 'manage_payment_screen.dart';
 
 class SuperAdminDashboard extends StatefulWidget {
   const SuperAdminDashboard({super.key});
@@ -118,6 +120,47 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       body: Column(
         children: [
           _buildHeaderSection(),
+          
+          // 👇 MENU KELOLA (Fitur Baru)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildMenuCard(
+                    context,
+                    title: 'Kelola Paket',
+                    icon: Icons.price_change,
+                    color: Colors.purple,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ManagePackagesScreen()),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildMenuCard(
+                    context,
+                    title: 'Metode Bayar',
+                    icon: Icons.qr_code_scanner, // Ganti icon agar lebih relevan
+                    color: Colors.green,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ManagePaymentScreen()),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           Expanded(
             child: Column(
               children: [
@@ -212,8 +255,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   ),
                 ),
 
-                // 📢 Tombol Pengaduan Customer (tanpa badge logic tambahan di sini,
-                // karena badge jumlah pengaduan sudah di ComplaintsScreen)
+                // 📢 Tombol Pengaduan Customer
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   child: SizedBox(
@@ -269,6 +311,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
+  // 👇 Helper widget untuk Header
   Widget _buildHeaderSection() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -377,6 +420,57 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
+  // 👇 Helper widget untuk Kartu Menu (FITUR BARU)
+  Widget _buildMenuCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 👇 Helper widget untuk Statistik Header
   Widget _buildStatCard({
     required IconData icon,
     required String label,
@@ -419,6 +513,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
+  // 👇 Helper widget untuk Card Toko List
   Widget _buildStoreCard(StoreModel store) {
     Color packageColor;
     String packageLabel;
@@ -492,7 +587,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     ),
                     child: Center(
                       child: Text(
-                        store.name[0].toUpperCase(),
+                        store.name.isNotEmpty ? store.name[0].toUpperCase() : '?',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -537,7 +632,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     decoration: BoxDecoration(
                       color: packageColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: packageColor.withOpacity(0.3)),
+                      border:
+                          Border.all(color: packageColor.withOpacity(0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -564,7 +660,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     child: _buildDetailItem(
                       icon: Icons.location_on_rounded,
                       label: 'Lokasi',
-                      value: 'N/A',
+                      value: (store.address != null && store.address!.isNotEmpty)
+                          ? store.address!
+                          : 'N/A',
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -572,7 +670,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     child: _buildDetailItem(
                       icon: Icons.calendar_today_rounded,
                       label: 'Dibuat',
-                      value: _formatDate(DateTime.timestamp()),
+                      value: _formatDate(store.subscriptionExpiry), 
+                      // Catatan: Jika ingin tanggal buat (createdAt), pastikan di StoreModel ada field createdAt.
+                      // Jika tidak, gunakan subscriptionExpiry atau field lain yang tersedia.
                     ),
                   ),
                 ],

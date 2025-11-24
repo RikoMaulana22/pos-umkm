@@ -19,7 +19,7 @@ dependencies:
   firebase_auth: ^6.1.2
   cloud_firestore: ^6.1.0
   firebase_storage: ^13.0.4
-
+  geolocator: ^14.0.2
   # Fungsional
   image: ^4.5.4
   image_picker: ^1.2.1

@@ -1,8 +1,12 @@
 // lib/features/superadmin/services/superadmin_service.dart
 
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:erp_umkm/features/superadmin/models/package_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../settings/models/store_model.dart';
 import '../models/upgrade_request_model.dart';
@@ -35,6 +39,7 @@ class SuperAdminService {
     required DateTime expiryDate,
     required double subscriptionPrice,
     required String subscriptionPackage,
+    required String location,
   }) async {
     try {
       FirebaseApp tempApp = await Firebase.initializeApp(
@@ -59,6 +64,7 @@ class SuperAdminService {
         'subscriptionPrice': subscriptionPrice,
         'subscriptionPackage': subscriptionPackage,
         'isActive': true,
+        'location': location,
       });
 
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
@@ -255,6 +261,86 @@ class SuperAdminService {
       await batch.commit();
     } catch (e) {
       throw Exception("Gagal menyetujui permintaan: ${e.toString()}");
+    }
+  }
+
+  CollectionReference get _settingsRef =>
+      _firestore.collection('global_settings');
+      
+        get _storage => null;
+
+  // --- PAKET LANGGANAN ---
+
+  // Ambil semua paket (Stream Realtime)
+  Stream<List<PackageModel>> getPackages() {
+    return _settingsRef.doc('packages').snapshots().map((snapshot) {
+      // Jika dokumen belum ada, kembalikan list kosong
+      if (!snapshot.exists) return [];
+
+      try {
+        final data = snapshot.data() as Map<String, dynamic>;
+        final List<dynamic> list = data['list'] ?? [];
+
+        // Mapping data ke model dengan aman
+        return list
+            .map((e) {
+              if (e is Map<String, dynamic>) {
+                return PackageModel.fromMap(e);
+              }
+              return null; // Skip jika format data salah
+            })
+            .whereType<PackageModel>()
+            .toList(); // Filter yang null
+      } catch (e) {
+        print("⚠️ Error parsing packages: $e");
+        return []; // Kembalikan kosong agar UI tidak crash
+      }
+    });
+  }
+
+  // Update Harga/Detail Paket
+  Future<void> updatePackage(List<PackageModel> packages) async {
+    try {
+      final List<Map<String, dynamic>> data =
+          packages.map((e) => e.toMap()).toList();
+
+      // Simpan ke collection 'global_settings', dokumen 'packages'
+      await _settingsRef
+          .doc('packages')
+          .set({'list': data}, SetOptions(merge: true));
+      print("✅ Paket berhasil diupdate di Firestore");
+    } catch (e) {
+      print("❌ Gagal update paket: $e");
+      throw Exception('Gagal update paket: $e');
+    }
+  }
+
+  // --- METODE PEMBAYARAN (QRIS) ---
+
+  Stream<String?> getQrisUrl() {
+    return _settingsRef.doc('payment').snapshots().map((snapshot) {
+      if (!snapshot.exists) return null;
+      final data = snapshot.data() as Map<String, dynamic>;
+      return data['qris_url'] as String?;
+    });
+  }
+
+  Future<void> updateQrisImage(File imageFile) async {
+    try {
+      String fileName = 'admin_qris/qris_payment.jpg';
+      Reference ref = _storage.ref().child(fileName);
+
+      // Tambahkan metadata contentType agar dikenali sebagai gambar
+      await ref.putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
+
+      String downloadUrl = await ref.getDownloadURL();
+
+      await _settingsRef.doc('payment').set({
+        'qris_url': downloadUrl,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Gagal upload QRIS: $e');
     }
   }
 }
