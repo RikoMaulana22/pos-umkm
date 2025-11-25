@@ -1,14 +1,13 @@
-// lib/features/core/auth_gate.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Import screens
 import '../auth/screens/login_or_register.dart';
 import '../home/home_screen.dart';
 import '../pos/screens/pos_screen.dart';
 import '../superadmin/screens/superadmin_dashboard.dart';
-import 'subscription_expired_screen.dart';
-// 1. IMPOR STORE MODEL
+import 'screens/subscription_package_screen.dart'; // Pastikan path import ini benar
 import '../settings/models/store_model.dart';
 
 class AuthGate extends StatelessWidget {
@@ -20,104 +19,119 @@ class AuthGate extends StatelessWidget {
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, authSnapshot) {
-          // 1. User belum login
+          // 1. Cek Auth Firebase
+          if (authSnapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           if (!authSnapshot.hasData) {
             return const LoginOrRegister();
           }
 
-          // 2. User sudah login, cek rolenya di Firestore
+          final User currentUser = authSnapshot.data!;
+
+          // 2. Stream Data User (Role & StoreID)
           return StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('users')
-                .doc(authSnapshot.data!.uid)
+                .doc(currentUser.uid)
                 .snapshots(),
             builder: (context, userSnapshot) {
-              // 3. Lagi loading data role
               if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()));
+                return const Center(child: CircularProgressIndicator());
               }
 
-              // 4. Gagal ambil data role
-
               if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+                // User login di Auth tapi data di Firestore hilang? Logout kan.
+                FirebaseAuth.instance.signOut();
                 return const LoginOrRegister();
               }
 
-              // 5. Data role ada, kita arahkan
               final userData =
                   userSnapshot.data!.data() as Map<String, dynamic>;
               final String role = userData['role'] ?? 'unknown';
               final String? storeId = userData['storeId'];
 
-              // 6. LOGIKA PERAN (ROLE)
-              switch (role) {
-                case 'superadmin':
-                  return const SuperAdminDashboard();
+              // 3. Routing Berdasarkan Role
+              if (role == 'superadmin') {
+                return const SuperAdminDashboard();
+              }
 
-                case 'admin':
-                case 'kasir':
-                  if (storeId == null) {
-                    return const Scaffold(
-                        body: Center(
-                            child: Text("Error: Akun tidak terikat ke toko.")));
+              // Jika role Admin/Kasir tapi tidak punya StoreID
+              if ((role == 'admin' || role == 'kasir') && storeId == null) {
+                return const Scaffold(
+                  body: Center(
+                      child:
+                          Text("Error: Akun tidak terikat ke toko manapun.")),
+                );
+              }
+
+              // 4. Stream Data Toko (Cek Expired)
+              return StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('stores')
+                    .doc(storeId)
+                    .snapshots(),
+                builder: (context, storeSnapshot) {
+                  if (storeSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
                   }
 
-                  // 7. LOGIKA LANGGANAN (Subscription)
-                  return StreamBuilder<StoreModel>(
-                    // Ubah ke StoreModel
-                    stream: FirebaseFirestore.instance
-                        .collection('stores')
-                        .doc(storeId)
-                        .snapshots()
-                        .map((doc) =>
-                            StoreModel.fromFirestore(doc)), // Konversi ke model
-                    builder: (context, storeSnapshot) {
-                      if (storeSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Scaffold(
-                            body: Center(child: CircularProgressIndicator()));
-                      }
+                  if (!storeSnapshot.hasData || !storeSnapshot.data!.exists) {
+                    return const Scaffold(
+                      body: Center(
+                          child: Text("Error: Data toko tidak ditemukan.")),
+                    );
+                  }
 
-                      if (!storeSnapshot.hasData) {
-                        return const Scaffold(
-                            body: Center(
-                                child: Text("Error: Toko tidak ditemukan.")));
-                      }
+                  // Konversi ke StoreModel
+                  StoreModel store;
+                  try {
+                    store = StoreModel.fromMap(
+                      storeSnapshot.data!.data() as Map<String, dynamic>,
+                      storeSnapshot.data!.id,
+                    );
+                  } catch (e) {
+                    return Scaffold(
+                      body: Center(child: Text("Error parsing data toko: $e")),
+                    );
+                  }
 
-                      // 3. GUNAKAN MODEL.CANOPERATE
-                      final store = storeSnapshot.data!;
+                  // 5. LOGIKA UTAMA: CEK MASA AKTIF
+                  // Cek manual expiry date
+                  bool isExpired = false;
+                  if (store.subscriptionExpiry != null) {
+                    isExpired =
+                        store.subscriptionExpiry!.isBefore(DateTime.now());
+                  }
 
-                      if (store.canOperate) {
-                        // Jika toko aktif dan langganan valid
-                        if (role == 'admin') {
-                          return HomeScreen(
-                            storeId: storeId,
-                            subscriptionPackage: store.subscriptionPackage,
-                          );
-                        } else {
-                          return PosScreen(
-                            storeId: storeId,
-                            subscriptionPackage: store.subscriptionPackage,
-                          );
-                        }
-                      } else {
-                        // Langganan Habis ATAU Toko di-suspend
-                        // ===========================================
-                        // INI ADALAH PERBAIKAN PENTING
-                        // ===========================================
-                        return SubscriptionExpiredScreen(
-                          storeId: storeId,
-                          userRole: role, // <-- KIRIM ROLE PENGGUNA
-                        );
-                      }
-                    },
-                  );
+                  // Jika Expired, arahkan ke layar langganan habis
+                  if (isExpired) {
+                    // PERBAIKAN: Sesuaikan argumen dengan definisi SubscriptionExpiredScreen
+                    return SubscriptionExpiredScreen(
+                      storeId: store.id,
+                      userRole: role,
+                    );
+                  }
 
-                default:
-                  // Role tidak dikenal ('unknown')
-                  return const LoginOrRegister();
-              }
+                  // Jika aktif, arahkan sesuai role dan kirim data yang diperlukan
+                  if (role == 'admin') {
+                    // PERBAIKAN: Kirim storeId dan subscriptionPackage ke HomeScreen
+                    return HomeScreen(
+                      storeId: store.id,
+                      subscriptionPackage: store.subscriptionPackage ?? 'Free',
+                    );
+                  } else if (role == 'kasir') {
+                    // PERBAIKAN: Kirim storeId dan subscriptionPackage ke PosScreen
+                    return PosScreen(
+                      storeId: store.id,
+                      subscriptionPackage: store.subscriptionPackage ?? 'Free',
+                    );
+                  }
+                  return const Center(child: Text("Role tidak dikenal."));
+                },
+              );
             },
           );
         },

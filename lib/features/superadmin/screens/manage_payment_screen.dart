@@ -1,7 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import '../services/superadmin_service.dart';
 
 class ManagePaymentScreen extends StatefulWidget {
   const ManagePaymentScreen({super.key});
@@ -11,107 +8,60 @@ class ManagePaymentScreen extends StatefulWidget {
 }
 
 class _ManagePaymentScreenState extends State<ManagePaymentScreen> {
-  final SuperAdminService _service = SuperAdminService();
-  bool _isLoading = false;
-
-  Future<void> _pickAndUploadImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
-      setState(() => _isLoading = true);
-      try {
-        await _service.updateQrisImage(File(image.path));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('QRIS Berhasil Diupdate!')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
-        }
-      } finally {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
+  // Simulasi data metode pembayaran
+  final List<Map<String, String>> paymentMethods = [
+    {'name': 'Bank BCA', 'account': '1234567890', 'holder': 'PT ERP UMKM'},
+    {'name': 'Bank Mandiri', 'account': '0987654321', 'holder': 'PT ERP UMKM'},
+    {'name': 'QRIS', 'account': 'N/A', 'holder': 'ERP UMKM Official'},
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kelola Metode Pembayaran')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'QRIS Pembayaran Saat Ini',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            
-            // Tampilan Gambar QRIS
-            StreamBuilder<String?>(
-              stream: _service.getQrisUrl(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                
-                final url = snapshot.data;
-                
-                return Container(
-                  height: 400,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.grey[200],
-                  ),
-                  child: url != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(url, fit: BoxFit.contain),
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.qr_code_scanner, size: 60, color: Colors.grey),
-                            SizedBox(height: 10),
-                            Text('Belum ada QRIS diupload'),
-                          ],
-                        ),
-                );
-              },
-            ),
-            
-            const SizedBox(height: 30),
-            
-            // Tombol Upload
-            ElevatedButton.icon(
-              onPressed: _isLoading ? null : _pickAndUploadImage,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Colors.blue[800],
-                foregroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Kelola Metode Pembayaran'),
+        backgroundColor: Colors.green, // Sesuaikan warna
+        foregroundColor: Colors.white,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: paymentMethods.length,
+        itemBuilder: (context, index) {
+          final method = paymentMethods[index];
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.account_balance_wallet,
+                    color: Colors.green),
               ),
-              icon: _isLoading 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.upload),
-              label: Text(_isLoading ? 'Sedang Mengupload...' : 'Upload QRIS Baru'),
+              title: Text(
+                method['name']!,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text('${method['holder']} - ${method['account']}'),
+              trailing: IconButton(
+                icon: const Icon(Icons.edit, color: Colors.grey),
+                onPressed: () {
+                  // TODO: Implementasi edit
+                },
+              ),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              '*Gambar QRIS baru akan otomatis muncul di aplikasi pengguna saat mereka melakukan pembayaran.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // TODO: Implementasi tambah rekening
+        },
+        backgroundColor: Colors.green,
+        child: const Icon(Icons.add),
       ),
     );
   }

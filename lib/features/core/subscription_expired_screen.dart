@@ -1,428 +1,254 @@
-// lib/features/core/subscription_expired_screen.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:math' as math;
-import 'screens/subscription_package_screen.dart';
+
+// Import model dan service yang sudah dibuat sebelumnya
+import '../../features/superadmin/models/package_model.dart';
+import '../../features/superadmin/services/package_service.dart'; // Gunakan service yang sama dengan Super Admin
+import 'services/subscription_service.dart';
 
 class SubscriptionExpiredScreen extends StatefulWidget {
-  final String storeId;
-  final String userRole;
-
-  const SubscriptionExpiredScreen({
-    super.key,
-    required this.storeId,
-    required this.userRole,
-  });
+  const SubscriptionExpiredScreen({super.key});
 
   @override
   State<SubscriptionExpiredScreen> createState() =>
       _SubscriptionExpiredScreenState();
 }
 
-class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen> {
+  final PackageService _packageService = PackageService();
+  final SubscriptionService _subscriptionService = SubscriptionService();
 
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
-    );
-
-    _animationController.forward();
+  // Format Rupiah
+  String formatCurrency(int amount) {
+    return NumberFormat.currency(
+            locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
+        .format(amount);
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  void _logout() {
-    FirebaseAuth.instance.signOut();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isAdmin = widget.userRole == 'admin';
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      body: Stack(
-        children: [
-          // ✨ Elegant Tech Background
-          Positioned.fill(
-            child: CustomPaint(
-              painter: ElegantTechBackgroundPainter(),
-            ),
-          ),
-
-          SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 60),
-
-                    // ✨ Animated Header Section
-                    FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: ScaleTransition(
-                        scale: _scaleAnimation,
-                        child: _buildAnimatedHeader(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 50),
-
-                    // ✨ Message Section
-                    FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: _buildMessageSection(isAdmin),
-                    ),
-
-                    const SizedBox(height: 60),
-
-                    // ✨ Action Buttons
-                    FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: _buildActionButtons(isAdmin),
-                    ),
-
-                    const SizedBox(height: 60),
-                  ],
-                ),
-              ),
-            ),
-          ),
+  // Fungsi saat user memilih paket
+  void _onSelectPackage(PackageModel pkg) async {
+    // Tampilkan loading atau konfirmasi
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Pilih ${pkg.name}?"),
+        content: Text(
+          "Anda akan memilih paket seharga ${formatCurrency(pkg.price)} "
+          "untuk durasi ${pkg.durationDays} hari.\n\n"
+          "Lanjutkan ke pembayaran?",
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Batal")),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Lanjut")),
         ],
       ),
     );
-  }
 
-  Widget _buildAnimatedHeader() {
-    return Column(
-      children: [
-        // ✨ Animated Icon Container
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            // Tech accent ring (rotating)
-            AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                return Transform.rotate(
-                  angle: _animationController.value * math.pi * 2,
-                  child: Container(
-                    width: 160,
-                    height: 160,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.red.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+    if (confirm == true && mounted) {
+      try {
+        // Ambil storeId user saat ini (Asumsi tersimpan di users collection)
+        String uid = FirebaseAuth.instance.currentUser!.uid;
+        DocumentSnapshot userDoc =
+            await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        String storeId = userDoc.get('storeId');
 
-            // Main Icon Container
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.red.withOpacity(0.15),
-                    Colors.orange.withOpacity(0.1),
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.red.withOpacity(0.2),
-                    blurRadius: 25,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.timer_off_rounded,
-                size: 60,
-                color: Colors.red,
-              ),
-            ),
-          ],
-        ),
+        // Kirim Request
+        await _subscriptionService.requestUpgrade(storeId, pkg.id, '');
 
-        const SizedBox(height: 28),
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content:
+                    Text("Permintaan terkirim! Silakan lakukan pembayaran.")),
+          );
 
-        // ✨ Title
-        const Text(
-          'Langganan Telah Berakhir',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
-            letterSpacing: 0.5,
-          ),
-          textAlign: TextAlign.center,
-        ),
-
-        const SizedBox(height: 8),
-
-        // ✨ Subtitle
-        Text(
-          'Masa percobaan atau paket Anda telah habis',
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey[600],
-            height: 1.5,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMessageSection(bool isAdmin) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.red.withOpacity(0.08),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ✨ Icon + Label
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.info_rounded,
-                  color: Colors.orange[700],
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                isAdmin ? 'Informasi Admin' : 'Informasi Kasir',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey[800],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // ✨ Message Text
-          Text(
-            isAdmin
-                ? 'Masa berlaku langganan Anda telah berakhir. Untuk melanjutkan menggunakan semua fitur EZZEN - Point Of Sale, silakan perbarui paket langganan Anda sekarang.'
-                : 'Langganan toko ini telah berakhir. Hanya Admin  yang dapat memperbarui paket. Silakan hubungi Admin Anda untuk mengaktifkan kembali layanan.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[700],
-              height: 1.7,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // ✨ What Happens Next
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Colors.red.withOpacity(0.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.warning_rounded,
-                  color: Colors.red[700],
-                  size: 18,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Akses semua fitur akan terbatas sampai langganan diperbarui',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.red[700],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(bool isAdmin) {
-    return Column(
-      children: [
-        // ✨ Upgrade Button (Hanya untuk Admin)
-        if (isAdmin) ...[
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        SubscriptionPackageScreen(storeId: widget.storeId),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.upgrade_rounded, size: 20),
-              label: const Text(
-                'Lihat Paket Berlangganan',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  letterSpacing: 0.3,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B5E20),
-                disabledBackgroundColor: Colors.grey[300],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-
-        // ✨ Logout Button
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: OutlinedButton.icon(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout_rounded, size: 20),
-            label: const Text(
-              'Logout',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.grey[700],
-              side: BorderSide(
-                color: Colors.grey[300]!,
-                width: 1.5,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // ✨ Help Text
-        Text(
-          isAdmin
-              ? 'Hubungi support jika ada pertanyaan tentang paket'
-              : 'Hubungi Admin Anda atau support untuk bantuan',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[600],
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ✨ Elegant Tech Background Painter
-class ElegantTechBackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-    const colors = [Color(0xFFFAFAFA), Color(0xFFF5F7F5)];
-    const stops = [0.0, 1.0];
-
-    paint.shader = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: colors,
-      stops: stops,
-    ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
-
-    // Subtle accent lines
-    final linePaint = Paint()
-      ..color = Colors.grey.withOpacity(0.04)
-      ..strokeWidth = 1.5;
-
-    for (double x = 0; x < size.width; x += 100) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height * 0.4),
-        linePaint,
-      );
+          // DI SINI: Arahkan ke halaman upload bukti bayar atau Payment Gateway
+          // Navigator.pushNamed(context, '/payment_instruction', arguments: pkg);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+          );
+        }
+      }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 40),
+            // Header
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      size: 60, color: Colors.orange),
+                  SizedBox(height: 16),
+                  Text(
+                    "Masa Aktif Toko Habis",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    "Jangan khawatir data Anda aman. Pilih paket langganan di bawah ini untuk mengaktifkan kembali toko Anda.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // List Paket (Dynamic dari Firestore)
+            Expanded(
+              child: StreamBuilder<List<PackageModel>>(
+                stream: _packageService.getPackages(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text("Error: ${snapshot.error}"));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                        child: Text("Tidak ada paket tersedia saat ini."));
+                  }
+
+                  final packages =
+                      snapshot.data!.where((p) => p.isActive).toList();
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    itemCount: packages.length,
+                    itemBuilder: (context, index) {
+                      final pkg = packages[index];
+                      // Desain Kartu Paket
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: index == 1
+                                ? Colors.blue
+                                : Colors.transparent, // Highlight paket tengah
+                            width: 2,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Pita (Optional: Jika paket Best Seller)
+                            if (index == 1)
+                              Container(
+                                color: Colors.blue,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: const Text(
+                                  "PALING LARIS",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12),
+                                ),
+                              ),
+
+                            Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    pkg.name,
+                                    style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    formatCurrency(pkg.price),
+                                    style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w800,
+                                        color: Theme.of(context).primaryColor),
+                                  ),
+                                  Text(
+                                    "/ ${pkg.durationDays} Hari",
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Divider(),
+                                  const SizedBox(height: 10),
+                                  // Fitur List
+                                  ...pkg.features.map((feature) => Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 4),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.check_circle,
+                                                color: Colors.green, size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: Text(feature)),
+                                          ],
+                                        ),
+                                      )),
+                                  const SizedBox(height: 24),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 50,
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: index == 1
+                                            ? Colors.blue
+                                            : Colors.grey[800],
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      onPressed: () => _onSelectPackage(pkg),
+                                      child: const Text("Pilih Paket Ini",
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

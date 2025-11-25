@@ -1,15 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+// Pastikan import ini sesuai dengan struktur folder Anda
 import '../../../shared/theme.dart';
 import '../../settings/models/store_model.dart';
 import '../services/superadmin_service.dart';
+import '../models/upgrade_request_model.dart';
+
+// Screen Imports
 import 'add_store_screen.dart';
 import 'edit_store_screen.dart';
 import 'superadmin_revenue_screen.dart';
-import '../models/upgrade_request_model.dart';
 import 'upgrade_requests_screen.dart';
-
-// 👇 Tambahan untuk pengaduan customer & fitur baru
 import 'complaints_screen.dart';
 import 'manage_packages_screen.dart';
 import 'manage_payment_screen.dart';
@@ -23,7 +25,9 @@ class SuperAdminDashboard extends StatefulWidget {
 
 class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   final SuperAdminService _service = SuperAdminService();
-  final Color superAdminColor = Colors.red[800]!;
+
+  // Warna tema Super Admin
+  final Color superAdminColor = const Color(0xFFC62828); // Red[800]
 
   void signOut() {
     FirebaseAuth.instance.signOut();
@@ -72,7 +76,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const UpgradeRequestsScreen(),
+                        builder: (context) => UpgradeRequestsScreen(),
                       ),
                     );
                   },
@@ -120,7 +124,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       body: Column(
         children: [
           _buildHeaderSection(),
-          
+
           // 👇 MENU KELOLA (Fitur Baru)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -130,7 +134,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   child: _buildMenuCard(
                     context,
                     title: 'Kelola Paket',
-                    icon: Icons.price_change,
+                    icon: Icons.card_membership_rounded,
                     color: Colors.purple,
                     onTap: () {
                       Navigator.push(
@@ -146,7 +150,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   child: _buildMenuCard(
                     context,
                     title: 'Metode Bayar',
-                    icon: Icons.qr_code_scanner, // Ganti icon agar lebih relevan
+                    icon: Icons.account_balance_wallet_rounded,
                     color: Colors.green,
                     onTap: () {
                       Navigator.push(
@@ -378,14 +382,19 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             builder: (context, snapshot) {
               final int totalStores =
                   (snapshot.hasData) ? snapshot.data!.length : 0;
+
+              // Safe check for subscriptionPackage to avoid null errors
               final int goldStores = (snapshot.hasData)
                   ? snapshot.data!
-                      .where((s) => s.subscriptionPackage == 'gold')
+                      .where((s) =>
+                          (s.subscriptionPackage ?? '').toLowerCase() == 'gold')
                       .length
                   : 0;
               final int silverStores = (snapshot.hasData)
                   ? snapshot.data!
-                      .where((s) => s.subscriptionPackage == 'silver')
+                      .where((s) =>
+                          (s.subscriptionPackage ?? '').toLowerCase() ==
+                          'silver')
                       .length
                   : 0;
 
@@ -420,7 +429,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-  // 👇 Helper widget untuk Kartu Menu (FITUR BARU)
+  // 👇 Helper widget untuk Kartu Menu
   Widget _buildMenuCard(
     BuildContext context, {
     required String title,
@@ -513,13 +522,17 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-  // 👇 Helper widget untuk Card Toko List
+  // 👇 Helper widget untuk Kartu Toko
   Widget _buildStoreCard(StoreModel store) {
     Color packageColor;
     String packageLabel;
     IconData packageIcon;
 
-    switch (store.subscriptionPackage.toLowerCase()) {
+    // Aman mengakses subscriptionPackage walaupun null
+    final String currentPackage =
+        (store.subscriptionPackage ?? 'free').toLowerCase();
+
+    switch (currentPackage) {
       case 'gold':
         packageColor = Colors.amber;
         packageLabel = 'Gold';
@@ -533,7 +546,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       case 'bronze':
         packageColor = Colors.brown[400]!;
         packageLabel = 'Bronze';
-        packageIcon = Icons.star_outline_rounded;
+        packageIcon = Icons.star_half_rounded;
         break;
       default:
         packageColor = Colors.blue[300]!;
@@ -587,7 +600,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     ),
                     child: Center(
                       child: Text(
-                        store.name.isNotEmpty ? store.name[0].toUpperCase() : '?',
+                        store.name.isNotEmpty
+                            ? store.name[0].toUpperCase()
+                            : '?',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -632,8 +647,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     decoration: BoxDecoration(
                       color: packageColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),
-                      border:
-                          Border.all(color: packageColor.withOpacity(0.3)),
+                      border: Border.all(color: packageColor.withOpacity(0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -660,19 +674,18 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     child: _buildDetailItem(
                       icon: Icons.location_on_rounded,
                       label: 'Lokasi',
-                      value: (store.address != null && store.address!.isNotEmpty)
-                          ? store.address!
-                          : 'N/A',
+                      value:
+                          (store.address != null && store.address!.isNotEmpty)
+                              ? store.address!
+                              : 'N/A',
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildDetailItem(
                       icon: Icons.calendar_today_rounded,
-                      label: 'Dibuat',
-                      value: _formatDate(store.subscriptionExpiry), 
-                      // Catatan: Jika ingin tanggal buat (createdAt), pastikan di StoreModel ada field createdAt.
-                      // Jika tidak, gunakan subscriptionExpiry atau field lain yang tersedia.
+                      label: 'Exp. Langganan',
+                      value: _formatDate(store.subscriptionExpiry),
                     ),
                   ),
                 ],
@@ -690,7 +703,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     );
                   },
                   icon: const Icon(Icons.edit_rounded, size: 16),
-                  label: const Text('Edit'),
+                  label: const Text('Edit Toko'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: superAdminColor.withOpacity(0.1),
                     foregroundColor: superAdminColor,
@@ -744,7 +757,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   }
 
   String _formatDate(DateTime? date) {
-    if (date == null) return 'N/A';
+    if (date == null) return '-';
     return '${date.day}/${date.month}/${date.year}';
   }
 }

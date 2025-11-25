@@ -1,8 +1,6 @@
 // lib/features/admin/screens/add_cashier_screen.dart
 import 'package:flutter/material.dart';
 import '../../auth/services/auth_service.dart';
-import '../../auth/widgets/custom_button.dart';
-import '../../auth/widgets/custom_textfield.dart';
 import '../../../shared/theme.dart';
 
 class AddCashierScreen extends StatefulWidget {

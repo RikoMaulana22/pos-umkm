@@ -1,393 +1,254 @@
-// lib/features/core/screens/subscription_package_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../shared/theme.dart';
-import '../../superadmin/models/package_model.dart'; // Pastikan file ini ada
-import '../../superadmin/services/superadmin_service.dart'; // Pastikan file ini ada
-import 'payment_upload_screen.dart';
 
-class SubscriptionPackageScreen extends StatefulWidget {
+// Import model dan service
+import '../../superadmin/models/package_model.dart';
+import '../../superadmin/services/package_service.dart';
+import '../services/subscription_service.dart';
+
+class SubscriptionExpiredScreen extends StatefulWidget {
   final String storeId;
-  const SubscriptionPackageScreen({super.key, required this.storeId});
+  final String userRole;
+
+  const SubscriptionExpiredScreen({
+    super.key,
+    required this.storeId,
+    required this.userRole,
+  });
 
   @override
-  State<SubscriptionPackageScreen> createState() =>
-      _SubscriptionPackageScreenState();
+  State<SubscriptionExpiredScreen> createState() =>
+      _SubscriptionExpiredScreenState();
 }
 
-class _SubscriptionPackageScreenState extends State<SubscriptionPackageScreen> {
-  String _selectedPackage = '';
+class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen> {
+  final PackageService _packageService = PackageService();
+  final SubscriptionService _subscriptionService = SubscriptionService();
+
+  String formatCurrency(int amount) {
+    return NumberFormat.currency(
+            locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
+        .format(amount);
+  }
+
+  void _onSelectPackage(PackageModel pkg) async {
+    // Hanya Admin/Owner yang boleh memperpanjang
+    if (widget.userRole != 'admin') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text("Hanya Admin Toko yang dapat melakukan perpanjangan.")),
+      );
+      return;
+    }
+
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Pilih ${pkg.name}?"),
+        content: Text(
+          "Anda akan memilih paket seharga ${formatCurrency(pkg.price)} "
+          "untuk durasi ${pkg.durationDays} hari.\n\n" // PERBAIKAN: durationDays
+          "Lanjutkan ke pembayaran?",
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Batal")),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Lanjut")),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        // PERBAIKAN: Gunakan requestUpgrade (sesuai service di Langkah 2C)
+        // Parameter: storeId, packageId, paymentProofUrl
+        // Kita kirim string kosong '' karena upload bukti bayar mungkin di step selanjutnya
+        await _subscriptionService.requestUpgrade(widget.storeId, pkg.id, '');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    "Permintaan terkirim! Silakan hubungi admin untuk pembayaran.")),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 🎨 Metadata statis untuk tampilan (Emoji & Deskripsi)
-    // Harga & Fitur akan ditimpa oleh data dari Database Admin
-    final Map<String, Map<String, dynamic>> packageMetadata = {
-      'bronze': {
-        'emoji': '🟫',
-        'desc': 'Untuk Pemula',
-        'isPopular': false,
-        'defaultPrice': 129000.0,
-        'defaultFeatures': [
-          "Input Produk Basic",
-          "Penjualan Basic",
-          "Struk Digital"
-        ]
-      },
-      'silver': {
-        'emoji': '⚪',
-        'desc': 'Untuk Berkembang',
-        'isPopular': true,
-        'defaultPrice': 249000.0,
-        'defaultFeatures': [
-          "Semua fitur Bronze",
-          "Multi Payment",
-          "Laporan Bulanan"
-        ]
-      },
-      'gold': {
-        'emoji': '🟨',
-        'desc': 'Untuk Enterprise',
-        'isPopular': false,
-        'defaultPrice': 359000.0,
-        'defaultFeatures': ["Semua fitur Silver", "Multi Outlet", "Support VIP"]
-      },
-    };
-
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      appBar: AppBar(
-        title: const Text('💳 Pilih Paket Langganan'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      // ✅ STREAMBUILDER: Mengambil data paket real-time dari Firebase Admin
-      body: StreamBuilder<List<PackageModel>>(
-        stream: SuperAdminService().getPackages(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text("Error memuat paket: ${snapshot.error}"));
-          }
-
-          List<PackageModel> packages = snapshot.data ?? [];
-
-          // JIKA DB KOSONG (Admin belum setup): Gunakan data default dari metadata
-          if (packages.isEmpty) {
-            packages = packageMetadata.entries.map((entry) {
-              return PackageModel(
-                id: entry.key,
-                name: entry.key[0].toUpperCase() + entry.key.substring(1),
-                price: (entry.value['defaultPrice'] as num).toDouble(),
-                // 🔥 PERBAIKAN: Cast List<dynamic> ke List<String> dengan aman
-                features:
-                    List<String>.from(entry.value['defaultFeatures'] ?? []),
-              );
-            }).toList();
-          }
-
-          // Urutkan paket: Bronze -> Silver -> Gold (berdasarkan ID)
-          packages.sort((a, b) {
-            final order = {'bronze': 1, 'silver': 2, 'gold': 3};
-            // Paket selain 3 di atas akan ditaruh di paling bawah
-            final indexA = order[a.id.toLowerCase()] ?? 99;
-            final indexB = order[b.id.toLowerCase()] ?? 99;
-            return indexA.compareTo(indexB);
-          });
-
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildHeaderSection(),
-                const SizedBox(height: 30),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: packages.map((pkg) {
-                      // Ambil metadata tampilan (Emoji, desc) berdasarkan ID paket
-                      // Jika paket baru (custom), gunakan default emoji paket
-                      final meta = packageMetadata[pkg.id.toLowerCase()] ??
-                          {
-                            'emoji': '📦',
-                            'desc': 'Paket Spesial',
-                            'isPopular': false
-                          };
-
-                      return Column(
-                        children: [
-                          _buildPackageCard(
-                            context: context,
-                            title: pkg.name, // Nama dari Database
-                            emoji: meta['emoji'],
-                            description: meta['desc'],
-                            price: pkg.price, // Harga dari Database
-                            features: pkg.features, // Fitur dari Database
-                            packageName: pkg.id,
-                            isPopular: meta['isPopular'],
-                            isSelected: _selectedPackage == pkg.id,
-                            onSelect: () => _selectPackage(pkg.id, pkg.price),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      );
-                    }).toList(),
+      backgroundColor: Colors.grey[100],
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 40),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 60, color: Colors.orange),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Masa Aktif Toko Habis",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                ),
-                const SizedBox(height: 40),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.userRole == 'admin'
+                        ? "Pilih paket langganan di bawah ini untuk mengaktifkan kembali toko Anda."
+                        : "Silakan hubungi pemilik toko untuk memperpanjang langganan.",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
-          );
-        },
-      ),
-    );
-  }
+            const SizedBox(height: 30),
+            Expanded(
+              child: StreamBuilder<List<PackageModel>>(
+                // PERBAIKAN: getPackagesStream -> getPackages
+                stream: _packageService.getPackages(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text("Error: ${snapshot.error}"));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                        child: Text("Tidak ada paket tersedia saat ini."));
+                  }
 
-  void _selectPackage(String packageName, double price) {
-    setState(() {
-      _selectedPackage = packageName;
-    });
-    _showConfirmationDialog(packageName, price);
-  }
+                  // Filter paket aktif
+                  final packages =
+                      snapshot.data!.where((p) => p.isActive).toList();
 
-  void _showConfirmationDialog(String packageName, double price) {
-    final formatCurrency =
-        NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_circle_rounded,
-                    size: 60, color: Colors.green[600]),
-                const SizedBox(height: 16),
-                Text(
-                  'Paket ${packageName.toUpperCase()} Dipilih',
-                  style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Harga: ${formatCurrency.format(price)}/bulan',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: primaryColor),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10))),
-                        child: const Text('Batal'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          // Kirim harga yang dipilih (dari database) ke Payment Screen
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PaymentUploadScreen(
-                                storeId: widget.storeId,
-                                packageName: packageName,
-                                price: price,
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    itemCount: packages.length,
+                    itemBuilder: (context, index) {
+                      final pkg = packages[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(
+                            color:
+                                index == 1 ? Colors.blue : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (index == 1)
+                              Container(
+                                color: Colors.blue,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: const Text(
+                                  "PALING LARIS",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12),
+                                ),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    pkg.name,
+                                    style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    formatCurrency(pkg.price),
+                                    style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w800,
+                                        color: Theme.of(context).primaryColor),
+                                  ),
+                                  Text(
+                                    "/ ${pkg.durationDays} Hari", // PERBAIKAN: durationDays
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Divider(),
+                                  const SizedBox(height: 10),
+                                  ...pkg.features.map((feature) => Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 4),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.check_circle,
+                                                color: Colors.green, size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: Text(feature)),
+                                          ],
+                                        ),
+                                      )),
+                                  const SizedBox(height: 24),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 50,
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: index == 1
+                                            ? Colors.blue
+                                            : Colors.grey[800],
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      onPressed: () => _onSelectPackage(pkg),
+                                      child: const Text("Pilih Paket Ini",
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10))),
-                        child: const Text('Lanjut',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHeaderSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [primaryColor, primaryColor.withOpacity(0.8)],
+          ],
         ),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          const Text(
-            'Paket Berlangganan',
-            style: TextStyle(
-                fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Pilih paket yang sesuai dengan kebutuhan bisnis Anda',
-            textAlign: TextAlign.center,
-            style:
-                TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.9)),
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPackageCard({
-    required BuildContext context,
-    required String title,
-    required String emoji,
-    required String description,
-    required double price,
-    required List<String> features,
-    required String packageName,
-    required bool isPopular,
-    required VoidCallback onSelect,
-    required bool isSelected,
-  }) {
-    final formatCurrency =
-        NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isPopular ? primaryColor : Colors.grey[200]!,
-          width: isPopular ? 2.5 : 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isPopular
-                ? primaryColor.withOpacity(0.2)
-                : Colors.black.withOpacity(0.03),
-            blurRadius: isPopular ? 20 : 10,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color:
-                  isPopular ? primaryColor.withOpacity(0.05) : Colors.grey[50],
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('$emoji Paket $title',
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text(description,
-                        style:
-                            TextStyle(fontSize: 12, color: Colors.grey[600])),
-                  ],
-                ),
-                if (isPopular)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                        color: primaryColor,
-                        borderRadius: BorderRadius.circular(8)),
-                    child: const Text('POPULER',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(formatCurrency.format(price),
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: primaryColor)),
-                const SizedBox(height: 12),
-                ...features.map((f) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle,
-                              size: 16, color: Colors.green[700]),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child: Text(f,
-                                  style: const TextStyle(fontSize: 12))),
-                        ],
-                      ),
-                    )),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: onSelect,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isSelected ? primaryColor : Colors.grey[200],
-                      foregroundColor:
-                          isSelected ? Colors.white : Colors.black87,
-                    ),
-                    child: Text(isSelected ? 'Dipilih' : 'Pilih Paket'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

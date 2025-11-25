@@ -1,7 +1,7 @@
-// lib/features/superadmin/screens/manage_packages_screen.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/package_model.dart';
-import '../services/superadmin_service.dart';
+import '../services/package_service.dart';
 
 class ManagePackagesScreen extends StatefulWidget {
   const ManagePackagesScreen({super.key});
@@ -11,241 +11,112 @@ class ManagePackagesScreen extends StatefulWidget {
 }
 
 class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
-  final SuperAdminService _service = SuperAdminService();
+  final PackageService _packageService = PackageService();
 
-  // Fungsi Menampilkan Dialog Edit
-  void _showEditDialog(
-      BuildContext context, List<PackageModel> allPackages, int index) {
-    final package = allPackages[index];
-    final priceController =
-        TextEditingController(text: package.price.toStringAsFixed(0));
-
-    // Variabel lokal dialog untuk status loading
-    bool isSaving = false;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false, // Dialog tidak bisa ditutup saat loading
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Text('Edit Harga ${package.name}'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: priceController,
-                  keyboardType: TextInputType.number,
-                  enabled: !isSaving, // Disable input saat menyimpan
-                  decoration: const InputDecoration(
-                    labelText: 'Harga Paket (Rp)',
-                    prefixText: 'Rp ',
-                    border: OutlineInputBorder(),
-                    hintText: 'Contoh: 150000',
-                  ),
-                ),
-                if (isSaving) ...[
-                  const SizedBox(height: 20),
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 10),
-                  const Text("Menyimpan perubahan..."),
-                ]
-              ],
-            ),
-            actions: [
-              if (!isSaving)
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Batal')),
-              if (!isSaving) // Sembunyikan tombol saat loading
-                ElevatedButton(
-                  onPressed: () async {
-                    // 1. Validasi Input
-                    if (priceController.text.isEmpty) return;
-
-                    final newPrice = double.tryParse(priceController.text
-                        .replaceAll('.',
-                            '')); // Hapus titik jika user pakai format ribuan
-
-                    if (newPrice == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Masukkan angka yang valid!')));
-                      return;
-                    }
-
-                    // 2. Tampilkan Loading (Update UI Dialog)
-                    setStateDialog(() {
-                      isSaving = true;
-                    });
-
-                    try {
-                      // 3. Update Data di List Lokal
-                      // Kita buat object baru untuk item yang diedit
-                      final updatedPackage = PackageModel(
-                        id: package.id,
-                        name: package.name,
-                        price: newPrice,
-                        features: package.features,
-                      );
-
-                      // Update list
-                      allPackages[index] = updatedPackage;
-
-                      // 4. Kirim ke Firebase Service
-                      await _service.updatePackage(allPackages);
-
-                      // 5. Jika Berhasil
-                      if (context.mounted) {
-                        Navigator.pop(context); // Tutup Dialog
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('✅ Harga Berhasil Disimpan!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      // 6. Jika Gagal (Error)
-                      // Print error ke console untuk debugging
-                      print("ERROR SAVE: $e");
-
-                      if (context.mounted) {
-                        setStateDialog(() {
-                          isSaving = false;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('❌ Gagal menyimpan: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[800],
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Simpan'),
-                ),
-            ],
-          );
-        },
-      ),
-    );
+  // Helper format currency
+  String formatCurrency(int amount) {
+    return NumberFormat.currency(
+            locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
+        .format(amount);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kelola Harga Paket'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
+        title: const Text("Kelola Paket Langganan"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.restore_page_outlined),
+            tooltip: "Generate Default Packages",
+            onPressed: () async {
+              // Tombol darurat untuk isi data jika kosong
+              await _packageService.initializeDefaultPackages();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text("Cek & inisialisasi paket selesai")),
+                );
+              }
+            },
+          )
+        ],
       ),
       body: StreamBuilder<List<PackageModel>>(
-        stream: _service.getPackages(),
+        // PERBAIKAN: getPackagesStream -> getPackages
+        stream: _packageService.getPackages(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          if (snapshot.hasError) {
-            return Center(
-                child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child:
-                  Text("Error: ${snapshot.error}", textAlign: TextAlign.center),
-            ));
-          }
-
-          var packages = snapshot.data ?? [];
-
-          // Jika data kosong, inisialisasi default
-          if (packages.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Belum ada data paket di database."),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () async {
-                      // Buat data default
-                      final defaults = [
-                        PackageModel(
-                            id: 'bronze',
-                            name: 'Bronze',
-                            price: 50000,
-                            features: ['Basic Features']),
-                        PackageModel(
-                            id: 'silver',
-                            name: 'Silver',
-                            price: 100000,
-                            features: ['Advanced Features']),
-                        PackageModel(
-                            id: 'gold',
-                            name: 'Gold',
-                            price: 150000,
-                            features: ['All Features']),
-                      ];
-                      await _service.updatePackage(defaults);
-                    },
-                    child: const Text("Buat Paket Default"),
-                  )
-                ],
-              ),
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
+              child: Text(
+                  "Belum ada paket. Tekan tombol refresh di pojok kanan atas."),
             );
           }
 
-          // Urutkan paket: Bronze -> Silver -> Gold
-          packages.sort((a, b) {
-            final order = {'bronze': 1, 'silver': 2, 'gold': 3};
-            return (order[a.id] ?? 99).compareTo(order[b.id] ?? 99);
-          });
-
-          return ListView.separated(
+          final packages = snapshot.data!;
+          return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: packages.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final pkg = packages[index];
-
-              // Tentukan warna icon berdasarkan paket
-              Color iconColor;
-              switch (pkg.id.toLowerCase()) {
-                case 'gold':
-                  iconColor = Colors.amber;
-                  break;
-                case 'silver':
-                  iconColor = Colors.grey;
-                  break;
-                default:
-                  iconColor = Colors.brown;
-              }
-
               return Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  leading: CircleAvatar(
-                    backgroundColor: iconColor.withOpacity(0.1),
-                    child: Icon(Icons.star, color: iconColor),
-                  ),
-                  title: Text(pkg.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(
-                    'Rp ${pkg.price.toStringAsFixed(0)}',
-                    style: TextStyle(
-                        color: Colors.green[700], fontWeight: FontWeight.w600),
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () => _showEditDialog(context, packages, index),
+                elevation: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            pkg.name,
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          Switch(
+                            value: pkg.isActive,
+                            onChanged: (val) {
+                              _packageService
+                                  .updatePackage(pkg.id, {'isActive': val});
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        // PERBAIKAN: durationInDays -> durationDays
+                        "${formatCurrency(pkg.price)} / ${pkg.durationDays} Hari",
+                        style: TextStyle(
+                            fontSize: 16,
+                            color: Theme.of(context).primaryColor),
+                      ),
+                      const SizedBox(height: 8),
+                      const Divider(),
+                      const Text("Fitur:",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      ...pkg.features.map((f) => Row(
+                            children: [
+                              const Icon(Icons.check,
+                                  size: 16, color: Colors.green),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(f)),
+                            ],
+                          )),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.edit),
+                          label: const Text("Edit Paket"),
+                          onPressed: () => _showEditDialog(context, pkg),
+                        ),
+                      )
+                    ],
                   ),
                 ),
               );
@@ -253,6 +124,84 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
           );
         },
       ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, PackageModel pkg) {
+    final nameController = TextEditingController(text: pkg.name);
+    final priceController = TextEditingController(text: pkg.price.toString());
+    // PERBAIKAN: durationInDays -> durationDays
+    final durationController =
+        TextEditingController(text: pkg.durationDays.toString());
+
+    // Gabungkan fitur jadi satu string dipisah koma
+    final featuresController =
+        TextEditingController(text: pkg.features.join(', '));
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Edit ${pkg.name}"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: "Nama Paket"),
+                ),
+                TextField(
+                  controller: priceController,
+                  decoration: const InputDecoration(labelText: "Harga (Rp)"),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: durationController,
+                  decoration: const InputDecoration(labelText: "Durasi (Hari)"),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 10),
+                const Text("Fitur (Pisahkan dengan koma):",
+                    style: TextStyle(fontSize: 12)),
+                TextField(
+                  controller: featuresController,
+                  decoration: const InputDecoration(
+                    hintText: "Contoh: Laporan PDF, Backup, 3 Kasir",
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Batal"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                List<String> featureList = featuresController.text
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
+
+                _packageService.updatePackage(pkg.id, {
+                  'name': nameController.text,
+                  'price': int.tryParse(priceController.text) ?? 0,
+                  // PERBAIKAN: durationInDays -> durationDays (Database Key)
+                  'durationDays': int.tryParse(durationController.text) ?? 30,
+                  'features': featureList,
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Simpan"),
+            ),
+          ],
+        );
+      },
     );
   }
 }

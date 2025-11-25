@@ -1,39 +1,39 @@
-// lib/features/superadmin/models/upgrade_request_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UpgradeRequestModel {
-  final String id; // ID dokumen permintaan
+  final String id;
   final String storeId;
+  final String userId;
   final String packageName;
-  final double price;
-  final String status;
-  final Timestamp requestedAt;
-  final String? proofOfPaymentURL; // <-- 1. TAMBAHKAN FIELD INI
-
-  // Tambahan untuk UI
-  String? storeName;
+  final int price;
+  final int durationInDays;
+  final String status; // 'pending', 'approved', 'rejected'
+  final DateTime createdAt;
+  final String paymentMethod;
 
   UpgradeRequestModel({
     required this.id,
     required this.storeId,
+    required this.userId,
     required this.packageName,
     required this.price,
+    required this.durationInDays,
     required this.status,
-    required this.requestedAt,
-    this.proofOfPaymentURL, // <-- 2. TAMBAHKAN DI CONSTRUCTOR
-    this.storeName,
+    required this.createdAt,
+    required this.paymentMethod,
   });
 
-  factory UpgradeRequestModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  factory UpgradeRequestModel.fromMap(Map<String, dynamic> map, String id) {
     return UpgradeRequestModel(
-      id: doc.id,
-      storeId: data['storeId'] ?? '',
-      packageName: data['packageName'] ?? '',
-      price: (data['price'] ?? 0.0).toDouble(),
-      status: data['status'] ?? 'pending',
-      requestedAt: data['requestedAt'] ?? Timestamp.now(),
-      proofOfPaymentURL: data['proofOfPaymentURL'], // <-- 3. AMBIL DATANYA
+      id: id,
+      storeId: map['storeId'] ?? '',
+      userId: map['userId'] ?? '',
+      packageName: map['packageName'] ?? '',
+      price: map['price']?.toInt() ?? 0,
+      durationInDays: map['durationInDays']?.toInt() ?? 0,
+      status: map['status'] ?? 'pending',
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      paymentMethod: map['paymentMethod'] ?? '',
     );
   }
 }

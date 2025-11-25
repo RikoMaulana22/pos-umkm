@@ -1,41 +1,39 @@
-// lib/features/superadmin/models/package_model.dart
-
 class PackageModel {
-  final String id; // 'bronze', 'silver', 'gold'
+  final String id;
   final String name;
-  final double price;
+  final int price;
+  final int durationDays; // Matches usage in screen
   final List<String> features;
+  final bool isActive;
 
   PackageModel({
     required this.id,
     required this.name,
     required this.price,
+    required this.durationDays,
     required this.features,
+    this.isActive = true,
   });
 
-  factory PackageModel.fromMap(Map<String, dynamic> map) {
+  factory PackageModel.fromMap(Map<String, dynamic> map, String id) {
     return PackageModel(
-      id: map['id']?.toString() ?? '',
-      name: map['name']?.toString() ?? '',
-      // Konversi aman ke double (mencegah error int vs double)
-      price: (map['price'] is int)
-          ? (map['price'] as int).toDouble()
-          : (map['price'] as double? ?? 0.0),
-      // 🔥 PERBAIKAN UTAMA DI SINI:
-      // Konversi aman dari List<dynamic> ke List<String>
-      features: (map['features'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      id: id,
+      name: map['name'] ?? '',
+      price: (map['price'] ?? 0).toInt(),
+      durationDays: (map['durationDays'] ?? 30)
+          .toInt(), // Ensure this key matches Firestore
+      features: List<String>.from(map['features'] ?? []),
+      isActive: map['isActive'] ?? true,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'name': name,
       'price': price,
+      'durationDays': durationDays,
       'features': features,
+      'isActive': isActive,
     };
   }
 }

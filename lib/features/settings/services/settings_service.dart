@@ -1,9 +1,5 @@
-// lib/features/settings/services/settings_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/store_model.dart';
-import '../services/printer_service.dart';
-import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -13,10 +9,13 @@ class SettingsService {
     try {
       DocumentSnapshot doc =
           await _firestore.collection('stores').doc(storeId).get();
+
       if (!doc.exists) {
         throw Exception("Toko tidak ditemukan");
       }
-      return StoreModel.fromFirestore(doc);
+
+      // PERBAIKAN: Gunakan fromMap dan casting data dengan aman
+      return StoreModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
     } catch (e) {
       throw Exception("Gagal mengambil data toko: ${e.toString()}");
     }
@@ -33,6 +32,41 @@ class SettingsService {
     }
   }
 
-  // TODO: Nanti kita tambahkan fungsi untuk pengaturan printer
-  // TODO: Nanti kita tambahkan fungsi untuk pengaturan pajak
+  // 3. Update Pengaturan Printer
+  Future<void> updatePrinterSettings({
+    required String storeId,
+    required String printerName,
+    required String printerAddress, // MAC Address untuk Bluetooth atau IP
+    int paperSize = 58, // Default 58mm, opsi lain 80mm
+  }) async {
+    try {
+      await _firestore.collection('stores').doc(storeId).update({
+        'printerSettings': {
+          'name': printerName,
+          'address': printerAddress,
+          'paperSize': paperSize,
+        }
+      });
+    } catch (e) {
+      throw Exception("Gagal menyimpan pengaturan printer: ${e.toString()}");
+    }
+  }
+
+  // 4. Update Pengaturan Pajak
+  Future<void> updateTaxSettings({
+    required String storeId,
+    required double taxRate, // Contoh: 11.0 untuk 11%
+    required bool isTaxEnabled,
+  }) async {
+    try {
+      await _firestore.collection('stores').doc(storeId).update({
+        'taxSettings': {
+          'rate': taxRate,
+          'enabled': isTaxEnabled,
+        }
+      });
+    } catch (e) {
+      throw Exception("Gagal menyimpan pengaturan pajak: ${e.toString()}");
+    }
+  }
 }

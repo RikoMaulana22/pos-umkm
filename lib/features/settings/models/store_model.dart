@@ -1,68 +1,48 @@
-// lib/features/settings/models/store_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class StoreModel {
   final String id;
-  final String name;
-  final String? address; // ✅ Tambahan: Untuk lokasi toko
   final String ownerId;
+  final String name;
+  final String? address;
+  final String? phone;
   final DateTime? subscriptionExpiry;
-  final double subscriptionPrice;
-  final bool isActive;
-  final String subscriptionPackage;
-  final DateTime? createdAt; // ✅ Tambahan: Untuk sorting tanggal pembuatan
+  // 👇 Tambahkan field ini
+  final String? subscriptionPackage;
 
   StoreModel({
     required this.id,
-    required this.name,
-    this.address, // ✅ Tambahan di constructor
     required this.ownerId,
+    required this.name,
+    this.address,
+    this.phone,
     this.subscriptionExpiry,
-    this.subscriptionPrice = 0.0,
-    this.isActive = true,
-    this.subscriptionPackage = 'bronze',
-    this.createdAt, // ✅ Tambahan di constructor
+    // 👇 Tambahkan di constructor
+    this.subscriptionPackage,
   });
 
-  factory StoreModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  factory StoreModel.fromMap(Map<String, dynamic> map, String id) {
     return StoreModel(
-      id: doc.id,
-      name: data['name'] ?? 'Tanpa Nama',
-      address: data['address'], // ✅ Ambil data address
-      ownerId: data['ownerId'] ?? '',
-      subscriptionExpiry: (data['subscriptionExpiry'] as Timestamp?)?.toDate(),
-      subscriptionPrice: (data['subscriptionPrice'] ?? 0).toDouble(),
-      isActive: data['isActive'] ?? true,
-      subscriptionPackage: data['subscriptionPackage'] ?? 'bronze',
-      createdAt:
-          (data['createdAt'] as Timestamp?)?.toDate(), // ✅ Ambil data createdAt
+      id: id,
+      ownerId: map['ownerId'] ?? '',
+      name: map['name'] ?? '',
+      address: map['address'],
+      phone: map['phone'],
+      subscriptionExpiry: map['subscriptionExpiry'] != null
+          ? (map['subscriptionExpiry'] as dynamic).toDate()
+          : null,
+      // 👇 Tambahkan di fromMap
+      subscriptionPackage: map['subscriptionPackage'],
     );
   }
 
-  // ✅ Tambahan: Method untuk mengubah data menjadi Map (PENTING untuk simpan ke Firebase)
   Map<String, dynamic> toMap() {
     return {
+      'ownerId': ownerId,
       'name': name,
       'address': address,
-      'ownerId': ownerId,
-      'subscriptionExpiry': subscriptionExpiry != null
-          ? Timestamp.fromDate(subscriptionExpiry!)
-          : null,
-      'subscriptionPrice': subscriptionPrice,
-      'isActive': isActive,
+      'phone': phone,
+      'subscriptionExpiry': subscriptionExpiry,
+      // 👇 Tambahkan di toMap
       'subscriptionPackage': subscriptionPackage,
-      'createdAt': createdAt != null
-          ? Timestamp.fromDate(createdAt!)
-          : FieldValue
-              .serverTimestamp(), // Otomatis isi tanggal sekarang jika kosong
     };
-  }
-
-  // Helper: Cek apakah toko BOLEH beroperasi
-  bool get canOperate {
-    if (!isActive) return false; // Jika dibekukan Super Admin
-    if (subscriptionExpiry == null) return false; // Jika data tanggal rusak
-    return subscriptionExpiry!.isAfter(DateTime.now()); // Jika belum expired
   }
 }
