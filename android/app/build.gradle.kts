@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.erp_umkm"
+    namespace = "com.example.ezzen"
 
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion

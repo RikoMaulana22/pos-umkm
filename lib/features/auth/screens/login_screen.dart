@@ -182,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // ✨ Loading Overlay
             if (_isLoading)
               Container(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.all(24),
@@ -229,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -442,7 +442,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B5E20).withOpacity(0.05),
+        color: const Color(0xFF1B5E20).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green[200]!),
       ),

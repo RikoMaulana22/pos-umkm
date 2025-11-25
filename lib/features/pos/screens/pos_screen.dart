@@ -160,7 +160,7 @@ class _PosScreenState extends State<PosScreen>
             child: Container(
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.  withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: IconButton(
@@ -366,7 +366,7 @@ class _PosScreenState extends State<PosScreen>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -470,7 +470,7 @@ class _PosScreenState extends State<PosScreen>
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: primaryColor.withOpacity(0.3),
+                        color: primaryColor.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -526,12 +526,12 @@ class _PosScreenState extends State<PosScreen>
                       ),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [primaryColor, primaryColor.withOpacity(0.8)],
+                          colors: [primaryColor, primaryColor.withValues(alpha: 0.8)],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: primaryColor.withOpacity(0.4),
+                            color: primaryColor.withValues(alpha: 0.4),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -546,7 +546,7 @@ class _PosScreenState extends State<PosScreen>
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.25),
+                                    color: Colors.white.withValues(alpha: 0.25),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Text(
@@ -568,7 +568,7 @@ class _PosScreenState extends State<PosScreen>
                                       Text(
                                         "${cart.items.length} Item - Rp",
                                         style: TextStyle(
-                                          color: Colors.white.withOpacity(0.9),
+                                          color: Colors.white.withValues(alpha: 0.9),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
                                         ),

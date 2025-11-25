@@ -398,7 +398,7 @@ class _ManageCashierScreenState extends State<ManageCashierScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: (isGold ? Colors.amber : Colors.blue).withOpacity(0.3),
+            color: (isGold ? Colors.amber : Colors.blue).withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -444,7 +444,7 @@ class _ManageCashierScreenState extends State<ManageCashierScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Row(
@@ -477,7 +477,7 @@ class _ManageCashierScreenState extends State<ManageCashierScreen> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -490,7 +490,7 @@ class _ManageCashierScreenState extends State<ManageCashierScreen> {
           height: 56,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [primaryColor, primaryColor.withOpacity(0.7)],
+              colors: [primaryColor, primaryColor.withValues(alpha: 0.7)],
             ),
             borderRadius: BorderRadius.circular(12),
           ),

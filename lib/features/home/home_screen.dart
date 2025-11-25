@@ -88,7 +88,7 @@ class HomeScreen extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.blue.withOpacity(0.15),
+                    color: Colors.blue.withValues(alpha: 0.15),
                     blurRadius: 15,
                     offset: Offset(0, 6)),
               ],
@@ -112,7 +112,7 @@ class HomeScreen extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.white.withOpacity(0.10),
+                            color: Colors.white.withValues(alpha: 0.10),
                             blurRadius: 18,
                             offset: Offset(0, 2),
                           ),
@@ -146,7 +146,7 @@ class HomeScreen extends StatelessWidget {
                             style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white.withOpacity(0.95)),
+                                color: Colors.white.withValues(alpha: 0.95)),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -159,7 +159,7 @@ class HomeScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(13),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _getPackageColor().withOpacity(0.18),
+                                  color: _getPackageColor().withValues(alpha: 0.18),
                                   blurRadius: 4,
                                   offset: Offset(0, 2),
                                 )
@@ -179,7 +179,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     // Logout button, more minimal
                     Material(
-                      color: Colors.white.withOpacity(0.07),
+                      color: Colors.white. withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(13),
                       child: IconButton(
                         icon: const Icon(Icons.logout,
@@ -382,8 +382,8 @@ class HomeScreen extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                color.withOpacity(0.09),
-                color.withOpacity(0.14),
+                color.withValues(alpha: 0.09),
+                color.withValues(alpha: 0.14),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -391,13 +391,13 @@ class HomeScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.09),
+                color: color.withValues(alpha: 0.09),
                 blurRadius: 15,
                 offset: const Offset(0, 4),
               ),
             ],
             border: Border.all(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withValues(alpha: 0.03),
               width: 1,
             ),
           ),
@@ -411,7 +411,7 @@ class HomeScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.12),
+                        color: color.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(icon, color: color, size: 28),

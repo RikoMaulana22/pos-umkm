@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-// Import model dan service yang sudah dibuat sebelumnya
+// Import model dan service
 import '../../features/superadmin/models/package_model.dart';
-import '../../features/superadmin/services/package_service.dart'; // Gunakan service yang sama dengan Super Admin
-import 'services/subscription_service.dart';
+import '../../features/superadmin/services/package_service.dart';
+// import 'services/subscription_service.dart'; // Tidak perlu service ini lagi di sini karena pindah ke PaymentUploadScreen
+
+// ✅ IMPOR LAYAR PEMBAYARAN
+import 'screens/payment_upload_screen.dart';
 
 class SubscriptionExpiredScreen extends StatefulWidget {
-  const SubscriptionExpiredScreen({super.key});
+  final String storeId;
+  final String userRole;
+  final bool isSuspended;
+
+  const SubscriptionExpiredScreen({
+    super.key,
+    required this.storeId,
+    required this.userRole,
+    this.isSuspended = false,
+  });
 
   @override
   State<SubscriptionExpiredScreen> createState() =>
@@ -18,18 +28,27 @@ class SubscriptionExpiredScreen extends StatefulWidget {
 
 class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen> {
   final PackageService _packageService = PackageService();
-  final SubscriptionService _subscriptionService = SubscriptionService();
+  // final SubscriptionService _subscriptionService = SubscriptionService(); // Tidak dipakai lagi
 
-  // Format Rupiah
   String formatCurrency(int amount) {
     return NumberFormat.currency(
             locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
         .format(amount);
   }
 
-  // Fungsi saat user memilih paket
   void _onSelectPackage(PackageModel pkg) async {
-    // Tampilkan loading atau konfirmasi
+    // Hanya Admin/Owner yang boleh memperpanjang
+    if (widget.userRole != 'admin') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text("Silakan hubungi Pemilik Toko (Admin) untuk memperpanjang."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     bool? confirm = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -51,68 +70,59 @@ class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen> {
     );
 
     if (confirm == true && mounted) {
-      try {
-        // Ambil storeId user saat ini (Asumsi tersimpan di users collection)
-        String uid = FirebaseAuth.instance.currentUser!.uid;
-        DocumentSnapshot userDoc =
-            await FirebaseFirestore.instance.collection('users').doc(uid).get();
-        String storeId = userDoc.get('storeId');
-
-        // Kirim Request
-        await _subscriptionService.requestUpgrade(storeId, pkg.id, '');
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content:
-                    Text("Permintaan terkirim! Silakan lakukan pembayaran.")),
-          );
-
-          // DI SINI: Arahkan ke halaman upload bukti bayar atau Payment Gateway
-          // Navigator.pushNamed(context, '/payment_instruction', arguments: pkg);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
-          );
-        }
-      }
+      // ✅ NAVIGASI LANGSUNG KE PAYMENT UPLOAD SCREEN
+      // Kita tidak lagi membuat request di sini, tapi di layar selanjutnya setelah bukti diupload
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentUploadScreen(
+            storeId: widget.storeId,
+            packageName: pkg.name, // Kirim nama paket
+            price: pkg.price.toDouble(), // Kirim harga (konversi ke double)
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final String title =
+        widget.isSuspended ? "Toko Dinonaktifkan" : "Masa Aktif Habis";
+    final String message = widget.isSuspended
+        ? "Toko Anda telah dinonaktifkan oleh Admin Pusat karena pelanggaran atau permintaan penutupan. Silakan hubungi layanan pelanggan."
+        : "Masa berlangganan Anda telah berakhir. Pilih paket baru di bawah ini untuk mengaktifkan kembali toko Anda.";
+    final IconData icon =
+        widget.isSuspended ? Icons.block : Icons.warning_amber_rounded;
+    final Color iconColor = widget.isSuspended ? Colors.red : Colors.orange;
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 40),
-            // Header
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.0),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      size: 60, color: Colors.orange),
-                  SizedBox(height: 16),
+                  Icon(icon, size: 60, color: iconColor),
+                  const SizedBox(height: 16),
                   Text(
-                    "Masa Aktif Toko Habis",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    title,
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
-                    "Jangan khawatir data Anda aman. Pilih paket langganan di bawah ini untuk mengaktifkan kembali toko Anda.",
+                    message,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: Colors.grey),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 30),
-
-            // List Paket (Dynamic dari Firestore)
             Expanded(
               child: StreamBuilder<List<PackageModel>>(
                 stream: _packageService.getPackages(),
@@ -137,7 +147,6 @@ class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen> {
                     itemCount: packages.length,
                     itemBuilder: (context, index) {
                       final pkg = packages[index];
-                      // Desain Kartu Paket
                       return Container(
                         margin: const EdgeInsets.only(bottom: 20),
                         decoration: BoxDecoration(
@@ -145,22 +154,20 @@ class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
                           ],
                           border: Border.all(
-                            color: index == 1
-                                ? Colors.blue
-                                : Colors.transparent, // Highlight paket tengah
+                            color:
+                                index == 1 ? Colors.blue : Colors.transparent,
                             width: 2,
                           ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Pita (Optional: Jika paket Best Seller)
                             if (index == 1)
                               Container(
                                 color: Colors.blue,
@@ -175,7 +182,6 @@ class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen> {
                                       fontSize: 12),
                                 ),
                               ),
-
                             Padding(
                               padding: const EdgeInsets.all(20.0),
                               child: Column(
@@ -201,7 +207,6 @@ class _SubscriptionExpiredScreenState extends State<SubscriptionExpiredScreen> {
                                   const SizedBox(height: 20),
                                   const Divider(),
                                   const SizedBox(height: 10),
-                                  // Fitur List
                                   ...pkg.features.map((feature) => Padding(
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 4),

@@ -337,8 +337,8 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  primaryColor.withOpacity(0.1),
-                  Colors.blue.withOpacity(0.05)
+                  primaryColor.withValues(alpha: 0.1),
+                  Colors.blue.withValues(alpha: 0.05)
                 ],
               ),
               border: Border(
@@ -350,7 +350,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.2),
+                    color: primaryColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -538,7 +538,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
             border: Border.all(color: Colors.grey[200]!),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -550,7 +550,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: stockColor.withOpacity(0.15),
+                  color: stockColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -612,7 +612,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: stockColor.withOpacity(0.1),
+                      color: stockColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -642,7 +642,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
+                  color: primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(

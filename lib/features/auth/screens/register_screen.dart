@@ -194,7 +194,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             // ✨ Loading Overlay
             if (_isLoading)
               Container(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.all(28),
@@ -203,7 +203,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 30,
                           offset: const Offset(0, 10),
                         ),
@@ -230,7 +230,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: const Color(0xFF1B5E20)
-                                              .withOpacity(0.3),
+                                              .withValues(alpha: 0.3),
                                           width: 2,
                                         ),
                                       ),
@@ -286,7 +286,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF1B5E20).withOpacity(0.2),
+                        color: const Color(0xFF1B5E20).withValues(alpha: 0.2),
                         width: 1,
                       ),
                     ),
@@ -303,7 +303,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF1B5E20).withOpacity(0.15),
+                    color: const Color(0xFF1B5E20).withValues(alpha: 0.15),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -499,7 +499,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
             prefixIcon: Icon(
               icon,
-              color: const Color(0xFF1B5E20).withOpacity(0.6),
+              color: const Color(0xFF1B5E20).withValues(alpha: 0.6),
               size: 20,
             ),
             border: OutlineInputBorder(
@@ -565,7 +565,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
             prefixIcon: Icon(
               Icons.lock_outline_rounded,
-              color: const Color(0xFF1B5E20).withOpacity(0.6),
+              color: const Color(0xFF1B5E20).withValues(alpha: 0.6),
               size: 20,
             ),
             suffixIcon: GestureDetector(
@@ -617,13 +617,13 @@ class _RegisterScreenState extends State<RegisterScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF1B5E20).withOpacity(0.08),
-            const Color(0xFF1B5E20).withOpacity(0.04),
+            const Color(0xFF1B5E20).withValues(alpha: 0.08),
+            const Color(0xFF1B5E20).withValues(alpha: 0.04),
           ],
         ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: const Color(0xFF1B5E20).withOpacity(0.12),
+          color: const Color(0xFF1B5E20).withValues(alpha: 0.12),
           width: 1.5,
         ),
       ),
@@ -698,7 +698,7 @@ class ElegantTechBackgroundPainter extends CustomPainter {
 
     // Subtle accent lines
     final linePaint = Paint()
-      ..color = Colors.grey.withOpacity(0.04)
+      ..color = Colors.grey.withValues(alpha: 0.04)
       ..strokeWidth = 1.5;
 
     // Vertical accent lines

@@ -63,7 +63,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: (statusColors[c.status] ?? Colors.orange).withOpacity(0.18),
+                              color: (statusColors[c.status] ?? Colors.orange).withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(

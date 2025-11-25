@@ -111,7 +111,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.9),
+                    color: Colors.green.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
@@ -182,7 +182,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
                 child: IconButton(
                   icon: const Icon(Icons.edit, color: Colors.white),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.blue.withOpacity(0.8),
+                    backgroundColor: Colors.blue.withValues(alpha: 0.8),
                   ),
                   onPressed: _pickImage,
                   tooltip: "Ganti gambar",
@@ -196,7 +196,7 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.9),
+                    color: Colors.blue.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(

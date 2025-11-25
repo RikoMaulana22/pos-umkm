@@ -95,7 +95,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: (statusColors[c.status] ?? Colors.orange)
-                                  .withOpacity(0.18),
+                                  .withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(

@@ -193,13 +193,13 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
           end: Alignment.bottomRight,
           colors: [
             superAdminColor,
-            superAdminColor.withOpacity(0.7),
+            superAdminColor.withValues(alpha: 0.7),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: superAdminColor.withOpacity(0.3),
+            color: superAdminColor.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -218,7 +218,7 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
                     'Total Potensi Penghasilan',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -236,7 +236,7 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(
@@ -251,20 +251,20 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.info_rounded,
-                    color: Colors.white.withOpacity(0.8), size: 16),
+                    color: Colors.white.withValues(alpha: 0.8), size: 16),
                 const SizedBox(width: 6),
                 Text(
                   'Dari semua langganan aktif',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
               ],
@@ -288,7 +288,7 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -303,7 +303,7 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -459,7 +459,7 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 18, color: color),
@@ -491,9 +491,9 @@ class _SuperAdminRevenueScreenState extends State<SuperAdminRevenueScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Text(
             value,

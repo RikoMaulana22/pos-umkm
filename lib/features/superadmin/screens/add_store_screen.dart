@@ -277,7 +277,7 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
           // ✨ Loading Overlay
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.black.withValues(alpha: 0.7),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(24),
@@ -314,19 +314,19 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            superAdminColor.withOpacity(0.1),
-            Colors.red.withOpacity(0.05)
+            superAdminColor.withValues(alpha: 0.1),
+            Colors.red.withValues(alpha: 0.05)
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: superAdminColor.withOpacity(0.2)),
+        border: Border.all(color: superAdminColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: superAdminColor.withOpacity(0.2),
+              color: superAdminColor.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -397,7 +397,7 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -452,7 +452,7 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -520,7 +520,7 @@ class _AddStoreScreenState extends State<AddStoreScreen> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

@@ -313,7 +313,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   Container(
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: IconButton(
@@ -383,7 +383,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [primaryColor, primaryColor.withOpacity(0.8)],
+                        colors: [primaryColor, primaryColor.withValues(alpha: 0.8)],
                       ),
                       borderRadius: const BorderRadius.vertical(
                         bottom: Radius.circular(24),
@@ -401,7 +401,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -650,7 +650,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                         gradient: LinearGradient(
                                           colors: [
                                             Colors.blue,
-                                            Colors.blue.withOpacity(0.5)
+                                            Colors.blue.withValues(alpha: 0.5)
                                           ],
                                         ),
                                         barWidth: 3,
@@ -661,8 +661,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                           show: true,
                                           gradient: LinearGradient(
                                             colors: [
-                                              Colors.blue.withOpacity(0.2),
-                                              Colors.blue.withOpacity(0.01),
+                                              Colors.blue.withValues(alpha: 0.2),
+                                              Colors.blue.withValues(alpha: 0.01),
                                             ],
                                             begin: Alignment.topCenter,
                                             end: Alignment.bottomCenter,
@@ -675,7 +675,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                         gradient: LinearGradient(
                                           colors: [
                                             Colors.green,
-                                            Colors.green.withOpacity(0.5)
+                                            Colors.green.withValues(alpha: 0.5)
                                           ],
                                         ),
                                         barWidth: 3,
@@ -686,8 +686,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                           show: true,
                                           gradient: LinearGradient(
                                             colors: [
-                                              Colors.green.withOpacity(0.2),
-                                              Colors.green.withOpacity(0.01),
+                                              Colors.green.withValues(alpha: 0.2),
+                                              Colors.green.withValues(alpha: 0.01),
                                             ],
                                             begin: Alignment.topCenter,
                                             end: Alignment.bottomCenter,
@@ -848,13 +848,13 @@ class _ReportScreenState extends State<ReportScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+            colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.05),
+              color: color.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -866,7 +866,7 @@ class _ReportScreenState extends State<ReportScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 24),
@@ -1193,7 +1193,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               gradient: LinearGradient(
                                 colors: [
                                   primaryColor,
-                                  primaryColor.withOpacity(0.6)
+                                  primaryColor.withValues(alpha: 0.6)
                                 ],
                               ),
                               width: 8,

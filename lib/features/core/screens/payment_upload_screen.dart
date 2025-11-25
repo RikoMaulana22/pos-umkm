@@ -1,10 +1,10 @@
-// lib/features/core/screens/payment_upload_screen.dart
 import 'dart:convert'; // Tambahan untuk JSON decode
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http; // Tambahan untuk HTTP Request
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart'; // Untuk fitur Copy Clipboard
 
 import '../../../shared/theme.dart';
 import '../../inventory/widgets/image_picker_widget.dart';
@@ -95,12 +95,16 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
       });
 
       // 2. Buat Dokumen di 'upgradeRequests' (Firestore)
+      // Perhatikan nama collection ini harus sama dengan yang dibaca di Admin
       await FirebaseFirestore.instance.collection('upgradeRequests').add({
         'storeId': widget.storeId,
         'packageName': widget.packageName,
         'price': widget.price,
         'status': 'pending',
+        'paymentMethod': 'Transfer Manual', // Default value
         'requestedAt': FieldValue.serverTimestamp(),
+        // Tambahkan field createdAt untuk konsistensi jika perlu
+        'createdAt': FieldValue.serverTimestamp(),
         'proofOfPaymentURL': downloadUrl, // URL dari Cloudinary
       });
 
@@ -166,7 +170,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                 ),
                 child: const Icon(
                   Icons.check_circle_rounded,
@@ -238,8 +242,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
                   onPressed: () {
                     Navigator.pop(context); // Tutup Dialog
                     Navigator.pop(context); // Kembali dari Upload Screen
-                    Navigator.pop(
-                        context); // Kembali ke Payment Screen (opsional)
+                    // Jika perlu kembali lebih jauh, sesuaikan di sini
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1B5E20),
@@ -392,7 +395,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
           // ✨ Upload Loading Overlay (Optional, jika ingin memblokir layar)
           if (_uploadProgress != null && _uploadProgress! < 1)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(28),
@@ -451,13 +454,13 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            primaryColor.withOpacity(0.1),
-            primaryColor.withOpacity(0.05),
+            primaryColor.withValues(alpha: 0.1),
+            primaryColor.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: primaryColor.withOpacity(0.15),
+          color: primaryColor.withValues(alpha: 0.15),
           width: 1.5,
         ),
       ),
@@ -521,7 +524,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
               width: 4,
               height: 24,
               decoration: BoxDecoration(
-                color: primaryColor,
+                color: const Color(0xFF1B5E20), // Sesuaikan primaryColor
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -537,45 +540,150 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey[200]!),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Text(
-                'Scan atau tap untuk membayar',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
+
+        // --- STREAM BUILDER FIRESTORE ---
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('payment_methods')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const Text('Gagal memuat metode pembayaran');
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final methods = snapshot.data!.docs;
+
+            if (methods.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
                 ),
-                child: Image.asset(
-                  'assets/images/qris_dana.jpg',
-                  width: 240,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ],
-          ),
+                child: const Text('Belum ada metode pembayaran tersedia.'),
+              );
+            }
+
+            return Column(
+              children: methods.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final String name = data['name'] ?? '';
+                final String holder = data['holder'] ?? '';
+                final String number = data['number'] ?? '';
+                final String type = data['type'] ?? 'BANK';
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[200]!),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header: Icon & Nama Bank
+                      Row(
+                        children: [
+                          Icon(
+                            type == 'QRIS'
+                                ? Icons.qr_code_scanner
+                                : Icons.account_balance,
+                            color: const Color(0xFF1B5E20),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (type == 'QRIS') ...[
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange[50],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'QRIS / E-Wallet',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.orange[800],
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            )
+                          ]
+                        ],
+                      ),
+                      const Divider(height: 24),
+
+                      // Detail Info
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  holder.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                SelectableText(
+                                  // Agar bisa dicopy manual user
+                                  number,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Tombol Copy
+                          IconButton(
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: number));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Nomor $name disalin!'),
+                                  duration: const Duration(seconds: 1),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.copy, color: Colors.grey),
+                            tooltip: 'Salin Nomor',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            );
+          },
         ),
       ],
     );
@@ -615,7 +723,7 @@ class _PaymentUploadScreenState extends State<PaymentUploadScreen> {
             border: Border.all(color: Colors.grey[200]!),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),

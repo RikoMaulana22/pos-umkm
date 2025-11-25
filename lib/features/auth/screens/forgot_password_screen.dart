@@ -183,7 +183,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           // ✨ Loading Overlay
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.black.withValues(alpha: 0.7),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(28),
@@ -192,7 +192,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 30,
                         offset: const Offset(0, 10),
                       ),
@@ -218,7 +218,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                       shape: BoxShape.circle,
                                       border: Border.all(
                                         color: const Color(0xFF1B5E20)
-                                            .withOpacity(0.3),
+                                            .withValues(alpha: 0.3),
                                         width: 2,
                                       ),
                                     ),
@@ -273,7 +273,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF1B5E20).withOpacity(0.2),
+                        color: const Color(0xFF1B5E20).withValues(alpha: 0.2),
                         width: 1,
                       ),
                     ),
@@ -288,10 +288,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF1B5E20).withOpacity(0.1),
+                color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF1B5E20).withOpacity(0.15),
+                    color: const Color(0xFF1B5E20).withValues(alpha: 0.15),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -341,17 +341,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFF1B5E20).withOpacity(0.08),
+          color: const Color(0xFF1B5E20).withValues(alpha: 0.08),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: const Color(0xFF1B5E20).withOpacity(0.05),
+            color: const Color(0xFF1B5E20).withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -384,7 +384,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                   ),
                   prefixIcon: Icon(
                     Icons.mail_outline_rounded,
-                    color: const Color(0xFF1B5E20).withOpacity(0.6),
+                    color: const Color(0xFF1B5E20).withValues(alpha: 0.6),
                     size: 20,
                   ),
                   border: OutlineInputBorder(
@@ -471,13 +471,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.green.withOpacity(0.08),
-            Colors.green.withOpacity(0.04),
+            Colors.green.withValues(alpha: 0.08),
+            Colors.green.withValues(alpha: 0.04),
           ],
         ),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Colors.green.withOpacity(0.2),
+          color: Colors.green.withValues(alpha: 0.2),
           width: 1.5,
         ),
       ),
@@ -489,7 +489,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.green.withOpacity(0.1),
+              color: Colors.green.withValues(alpha: 0.1),
             ),
             child: const Icon(
               Icons.check_circle_rounded,
@@ -594,10 +594,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.05),
+        color: Colors.blue.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.blue.withOpacity(0.2),
+          color: Colors.blue.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -643,7 +643,7 @@ class ElegantTechBackgroundPainter extends CustomPainter {
 
     // Subtle accent lines
     final linePaint = Paint()
-      ..color = Colors.grey.withOpacity(0.04)
+      ..color = Colors.grey.withValues(alpha: 0.04)
       ..strokeWidth = 1.5;
 
     // Vertical accent lines

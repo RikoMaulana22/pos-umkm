@@ -8,24 +8,27 @@ class PrinterService {
   static const String _addressKey = 'printer_address';
 
   // Menyimpan detail printer
-  Future<void> savePrinter(BluetoothDevice device) async {
-    final SharedPreferences prefs = await _prefs;
-    await prefs.setString(_nameKey, device.name ?? 'Unknown Device');
-    await prefs.setString(_addressKey, device.address ?? '');
+  Future<void> savePrinter(String name, String address) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('printer_name', name);
+    await prefs.setString('printer_address', address);
   }
 
-  // Mengambil detail printer yang tersimpan
+  // Update fungsi getSavedPrinter Anda agar mengembalikan Map:
   Future<Map<String, String?>> getSavedPrinter() async {
-    final SharedPreferences prefs = await _prefs;
-    final String? name = prefs.getString(_nameKey);
-    final String? address = prefs.getString(_addressKey);
-    return {'name': name, 'address': address};
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'name': prefs.getString('printer_name'),
+      'address': prefs.getString('printer_address'),
+    };
+  }
+
+  // Fungsi hapus
+  Future<void> clearPrinter() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('printer_name');
+    await prefs.remove('printer_address');
   }
 
   // Menghapus printer
-  Future<void> clearPrinter() async {
-    final SharedPreferences prefs = await _prefs;
-    await prefs.remove(_nameKey);
-    await prefs.remove(_addressKey);
-  }
 }

@@ -72,7 +72,7 @@ class _SplashScreenState extends State<SplashScreen> {
               // //   'Solusi Bisnis Digital Terdepan', // Tagline bisa diganti
               // //   style: TextStyle(
               // //     fontSize: 14,
-              // //     color: Colors.white.withOpacity(0.7),
+              // //     color: Colors.white.withValues(alpha: 0.7),
               // //     fontWeight: FontWeight.w500,
               // //     letterSpacing: 0.8,
               // //   ),

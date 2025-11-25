@@ -113,9 +113,120 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  void _showPrinterDialog() {
-    _showInfoSnackBar(
-        "Fitur scanner perangkat printer belum diimplementasi detail di contoh singkat ini.");
+  Future<void> _showPrinterDialog() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Cek apakah bluetooth aktif
+      bool? isOn = await _printer.isOn;
+      if (isOn != true) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        _showErrorSnackBar("Harap nyalakan Bluetooth HP Anda terlebih dahulu.");
+        return;
+      }
+
+      // Ambil daftar device yang sudah dipairing (Bonded Devices)
+      // Catatan: Library ini paling stabil membaca device yang sudah dipairing via Setting HP
+      List<BluetoothDevice> devices = await _printer.getBondedDevices();
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (devices.isEmpty) {
+        _showInfoSnackBar(
+            "Tidak ada printer yang dipairing. Silakan pairing printer via Pengaturan Bluetooth HP dulu.");
+        return;
+      }
+
+      // Tampilkan Dialog Daftar Printer
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Pilih Printer Thermal"),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 300,
+              child: ListView.builder(
+                itemCount: devices.length,
+                itemBuilder: (context, index) {
+                  final device = devices[index];
+                  return ListTile(
+                    leading: const Icon(Icons.print, color: Colors.grey),
+                    title: Text(device.name ?? "Unknown Device"),
+                    subtitle: Text(device.address ?? "-"),
+                    onTap: () {
+                      Navigator.pop(context); // Tutup dialog
+                      _connectToPrinter(device); // Proses koneksi
+                    },
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Batal"),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showErrorSnackBar("Gagal memuat bluetooth: ${e.toString()}");
+    }
+  }
+
+  // 2. TAMBAHKAN method ini untuk menangani koneksi:
+  Future<void> _connectToPrinter(BluetoothDevice device) async {
+    if (device.address == null) return;
+
+    setState(() {
+      _isPrinterBusy = true;
+      _printerStatusMessage = "Menghubungkan ke ${device.name}...";
+    });
+
+    try {
+      // Jika sebelumnya sudah ada koneksi, putus dulu
+      if (await _printer.isConnected == true) {
+        await _printer.disconnect();
+      }
+
+      // Coba hubungkan
+      await _printer.connect(device);
+
+      // Simpan data printer ke penyimpanan lokal (agar auto-connect nanti)
+      // Pastikan PrinterService Anda memiliki method savePrinter
+      await _printerService.savePrinter(
+          device.name ?? "Unknown", device.address!);
+
+      setState(() {
+        _savedPrinterName = device.name;
+        _savedPrinterAddress = device.address;
+      });
+
+      if (!mounted) return;
+      _showSuccessSnackBar("Berhasil terhubung ke ${device.name}");
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorSnackBar("Gagal menghubungkan: ${e.toString()}");
+
+      // Reset tampilan jika gagal
+      setState(() {
+        _savedPrinterName = null;
+        _savedPrinterAddress = null;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPrinterBusy = false;
+          _printerStatusMessage = "";
+        });
+      }
+    }
   }
 
   Future<void> _runTestPrint() async {
@@ -359,7 +470,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             border: Border.all(color: Colors.grey[200]!),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -407,7 +518,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         boxShadow: [
           BoxShadow(
             color: (_savedPrinterName != null ? Colors.green : Colors.black)
-                .withOpacity(0.05),
+                .withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -639,7 +750,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         border: Border.all(color: Colors.grey[200]!),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
+                            color: Colors.black.withValues(alpha: 0.03),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -717,7 +828,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           if (_isLoading || _isPrinterBusy)
             Container(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(24),

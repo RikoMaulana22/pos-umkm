@@ -330,7 +330,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [primaryColor.withOpacity(0.1), Colors.blue.withOpacity(0.05)],
+                    colors: [primaryColor.withValues(alpha: 0.1), Colors.blue.withValues(alpha: 0.05)],
                   ),
                   border: Border(
                     bottom: BorderSide(color: Colors.grey[200]!),
@@ -341,7 +341,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.2),
+                        color: primaryColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -412,7 +412,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -423,7 +423,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: primaryColor.withOpacity(0.1),
+            color: primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
