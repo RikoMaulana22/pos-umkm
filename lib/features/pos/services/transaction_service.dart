@@ -12,7 +12,7 @@ class TransactionService {
   Future<String> processTransaction({
     required CartProvider cart,
     required String storeId,
-    required String paymentMethod, double? cashReceived, double? change,
+    required String paymentMethod, double? cashReceived, double? change, required String customerName,
   }) async {
     if (_userId == null) throw Exception("User tidak login");
 

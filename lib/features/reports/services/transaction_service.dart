@@ -1,9 +1,7 @@
 // lib/features/pos/services/transaction_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../pos/providers/cart_provider.dart';
-import '../../reports/models/transaction_item_model.dart';
-
+import 'package:erp_umkm/features/pos/providers/cart_provider.dart';
 class TransactionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -14,48 +12,90 @@ class TransactionService {
     required CartProvider cart,
     required String storeId,
     required String paymentMethod,
-    // INI ADALAH BAGIAN YANG MEMPERBAIKI ERROR ANDA
     double? cashReceived,
-    double? change,
+    String? customerName, // Parameter baru
   }) async {
     if (_userId == null) throw Exception("User tidak login");
 
     WriteBatch batch = _firestore.batch();
-    DocumentReference transactionDoc =
-        _firestore.collection('transactions').doc();
+    DocumentReference transactionDoc = _firestore.collection('transactions').doc();
 
-    // 4. UBAH Logika penyimpanan item
+    // --- LOGIKA HITUNG HUTANG & STATUS ---
+    double total = cart.totalPrice;
+    double paid = 0;
+    double debt = 0;
+    String status = 'Lunas';
+
+    if (paymentMethod == 'Hutang') {
+      paid = 0;
+      debt = total;
+      status = 'Belum Lunas';
+    } else if (paymentMethod == 'Split') {
+      paid = cashReceived ?? 0;
+      debt = total - paid;
+      // Jika pembayaran >= total, anggap lunas (kembalian diurus UI)
+      if (debt <= 0) {
+        debt = 0;
+        paid = total;
+        status = 'Lunas';
+      } else {
+        status = 'Sebagian';
+      }
+    } else {
+      // Tunai, QRIS, Transfer, Kartu
+      paid = total;
+      debt = 0;
+      status = 'Lunas';
+    }
+
+    // --- PERSIAPAN DATA ---
     List<Map<String, dynamic>> itemsData = cart.items.entries.map((entry) {
-      // Buat model item transaksi
       final item = entry.value;
-      final transactionItem = TransactionItemModel(
-        productId: item.product.id!,
-        productName: item.product.name,
-        quantity: item.quantity,
-        price: item.product.hargaJual,
-        cost: item.product.hargaModal, // <-- INI KUNCINYA
-      );
-      return transactionItem.toMap(); // Konversi ke Map
+      return {
+        'productId': item.product.id,
+        'productName': item.product.name,
+        'quantity': item.quantity,
+        'price': item.product.hargaJual,
+        'cost': item.product.hargaModal, // Penting untuk laporan laba
+      };
     }).toList();
 
-    // 5. SIMPAN data transaksi lengkap
+    // 1. Simpan Transaksi Utama
     batch.set(transactionDoc, {
       'storeId': storeId,
       'cashierId': _userId,
-      'totalPrice': cart.totalPrice,
+      'totalPrice': total,
       'totalItems': cart.totalItems,
       'paymentMethod': paymentMethod,
       'items': itemsData,
       'timestamp': FieldValue.serverTimestamp(),
-      'cashReceived': cashReceived, // Simpan uang tunai
-      'change': change, // Simpan kembalian
+      // Field Baru
+      'paid': paid,
+      'debt': debt,
+      'customerName': customerName,
+      'paymentStatus': status,
     });
 
-    // 2. Kurangi stok (Tidak berubah)
+    // 2. Jika ada hutang, catat di koleksi 'debts'
+    if (debt > 0) {
+      DocumentReference debtDoc = _firestore.collection('debts').doc();
+      batch.set(debtDoc, {
+        'transactionId': transactionDoc.id,
+        'customerName': customerName,
+        'storeId': storeId,
+        'originalTotal': total,
+        'amountPaid': paid,
+        'remainingAmount': debt,
+        'status': status == 'Belum Lunas' ? 'unpaid' : 'partial',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 3. Kurangi Stok
     for (var item in cart.items.values) {
       DocumentReference productDoc =
           _firestore.collection('products').doc(item.product.id);
-
       batch.update(productDoc, {
         'stok': FieldValue.increment(-item.quantity),
       });

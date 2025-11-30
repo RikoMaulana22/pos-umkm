@@ -7,6 +7,7 @@ import '../inventory/screens/inventory_screen.dart';
 import '../reports/screens/report_screen.dart';
 import '../settings/screens/settings_screen.dart';
 import '../admin/screens/manage_cashier_screen.dart';
+import '../reports/screens/debt_list_screen.dart';
 
 // -----------------------------------------------------------------------------------------------------------------
 // HomeScreen Design Modern
@@ -159,7 +160,8 @@ class HomeScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(13),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _getPackageColor().withValues(alpha: 0.18),
+                                  color: _getPackageColor()
+                                      .withValues(alpha: 0.18),
                                   blurRadius: 4,
                                   offset: Offset(0, 2),
                                 )
@@ -179,7 +181,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     // Logout button, more minimal
                     Material(
-                      color: Colors.white. withValues(alpha: 0.07),
+                      color: Colors.white.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(13),
                       child: IconButton(
                         icon: const Icon(Icons.logout,
@@ -258,6 +260,7 @@ class HomeScreen extends StatelessWidget {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
+                      // 1. Transaksi
                       _buildModernMenuCard(
                         context: context,
                         label: "Transaksi",
@@ -272,6 +275,8 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+
+                      // 2. Inventaris
                       _buildModernMenuCard(
                         context: context,
                         label: "Inventaris",
@@ -283,6 +288,21 @@ class HomeScreen extends StatelessWidget {
                           InventoryScreen(storeId: storeId),
                         ),
                       ),
+
+                      // 3. Catatan Hutang (MENU BARU)
+                      _buildModernMenuCard(
+                        context: context,
+                        label: "Catatan Hutang",
+                        subtitle: "Bayar & Cek Tagihan",
+                        icon: Icons.account_balance_wallet_rounded,
+                        color: Colors.redAccent,
+                        onTap: () => _goTo(
+                          context,
+                          const DebtListScreen(), // Navigasi ke DebtListScreen
+                        ),
+                      ),
+
+                      // 4. Laporan
                       _buildModernMenuCard(
                         context: context,
                         label: "Laporan",
@@ -297,6 +317,8 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+
+                      // 5. Pengaturan (Admin Only)
                       if (isAdmin)
                         _buildModernMenuCard(
                           context: context,
@@ -309,6 +331,8 @@ class HomeScreen extends StatelessWidget {
                             SettingsScreen(storeId: storeId),
                           ),
                         ),
+
+                      // 6. Manajemen Kasir (Premium Only)
                       if (isSilverOrGold && isAdmin)
                         _buildModernMenuCard(
                           context: context,

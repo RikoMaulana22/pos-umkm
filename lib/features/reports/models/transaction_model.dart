@@ -10,9 +10,14 @@ class TransactionModel {
   final String paymentMethod;
   final Timestamp timestamp;
   final List<TransactionItemModel> items;
-  final double? cashReceived;
-  final double? change;
 
+  // Field baru untuk fitur Hutang & Split
+  final double amountPaid; // Jumlah yang sudah dibayar
+  final double remainingDebt; // Sisa hutang
+  final String? customerName; // Nama pelanggan (wajib jika hutang)
+  final String paymentStatus; // 'Lunas', 'Belum Lunas', 'Sebagian'
+  final double? cashReceived; // Uang fisik yang diterima kasir
+  final double? change;
   double get totalCost {
     return items.fold(0.0, (sum, item) => sum + (item.cost * item.quantity));
   }
@@ -30,7 +35,11 @@ class TransactionModel {
     required this.paymentMethod,
     required this.timestamp,
     required this.items,
-    this.cashReceived,
+    this.amountPaid = 0,
+    this.remainingDebt = 0,
+    this.customerName,
+    this.paymentStatus = 'Lunas',
+    this.cashReceived, // Tambahkan ini
     this.change,
   });
 
@@ -53,6 +62,11 @@ class TransactionModel {
       paymentMethod: data['paymentMethod'] ?? 'N/A',
       timestamp: data['timestamp'] ?? Timestamp.now(),
       items: parsedItems,
+      // Mapping field baru dengan fallback value untuk data lama
+      amountPaid: (data['paid'] ?? data['totalPrice'] ?? 0).toDouble(),
+      remainingDebt: (data['debt'] ?? 0).toDouble(),
+      customerName: data['customerName'],
+      paymentStatus: data['paymentStatus'] ?? 'Lunas',
       cashReceived: (data['cashReceived'] ?? 0).toDouble(),
       change: (data['change'] ?? 0).toDouble(),
     );

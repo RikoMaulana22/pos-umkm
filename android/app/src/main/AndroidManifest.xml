@@ -19,7 +19,7 @@
 
 
     <application
-        android:label="EZZEN-Point Of Sale"
+        android:label="EZZEN"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         

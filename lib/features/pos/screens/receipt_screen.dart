@@ -5,10 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/theme.dart';
 import '../../reports/models/transaction_model.dart';
-// 1. IMPOR BARU
 import '../../settings/services/printer_service.dart';
-
-
 
 class ReceiptScreen extends StatefulWidget {
   final String transactionId;
@@ -19,7 +16,6 @@ class ReceiptScreen extends StatefulWidget {
 }
 
 class _ReceiptScreenState extends State<ReceiptScreen> {
-  // 2. BUAT STATE UNTUK SERVICE & FORMATTER
   final PrinterService _printerService = PrinterService();
   final BlueThermalPrinter _printer = BlueThermalPrinter.instance;
   final formatCurrency =
@@ -27,14 +23,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   final formatDateTime = DateFormat('dd/MM/yyyy, HH:mm');
   bool _isPrinting = false;
 
-  // 3. FUNGSI UNTUK MENCETAK (DENGAN PERBAIKAN LOGIKA KONEKSI)
   Future<void> _printReceipt(TransactionModel tx) async {
     setState(() {
       _isPrinting = true;
     });
 
     try {
-      // 1. Dapatkan printer yang tersimpan
       final printerData = await _printerService.getSavedPrinter();
       final String? address = printerData['address'];
 
@@ -43,51 +37,69 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             "Printer belum diatur. Silakan atur di menu Pengaturan.");
       }
 
-      // 2. Buat objek device
       final device = BluetoothDevice(printerData['name'], address);
 
-      // 3. Cek koneksi & hubungkan jika perlu
       bool? isConnected = await _printer.isConnected;
       if (isConnected != true) {
-        // PERBAIKAN: Hubungkan dan periksa hasilnya
         bool? connectResult = await _printer.connect(device);
         if (connectResult != true) {
-          // Jika koneksi gagal, lemparkan error
-          throw Exception("Gagal terhubung ke printer. Pastikan printer menyala.");
+          throw Exception(
+              "Gagal terhubung ke printer. Pastikan printer menyala.");
         }
       }
 
-      // 4. Format & Kirim data ke printer
-      // Jika kita sampai di sini, printer seharusnya sudah terhubung.
+      // --- CETAK HEADER ---
       _printer.printCustom("Pembayaran Berhasil", 2, 1);
       _printer.printCustom(formatDateTime.format(tx.timestamp.toDate()), 0, 1);
+
+      // Tambahan: Nama Pelanggan (Jika ada)
+      if (tx.customerName != null && tx.customerName!.isNotEmpty) {
+        _printer.printCustom("Plg: ${tx.customerName}", 0, 1);
+      }
+
       _printer.printNewLine();
       _printer.printCustom("--- Rincian Item ---", 1, 0);
 
+      // --- CETAK ITEM ---
       for (var item in tx.items) {
         _printer.printLeftRight("${item.quantity}x ${item.productName}",
             formatCurrency.format(item.price * item.quantity), 0);
       }
       _printer.printCustom("----------------------", 1, 0);
+
+      // --- CETAK TOTAL ---
       _printer.printLeftRight("TOTAL", formatCurrency.format(tx.totalPrice), 1);
 
+      // --- LOGIKA TAMPILAN PEMBAYARAN BARU ---
+      _printer.printLeftRight("Metode", tx.paymentMethod, 0);
+
       if (tx.paymentMethod == "Tunai" && tx.cashReceived != null) {
+        // Logika Tunai Biasa
         _printer.printLeftRight(
-            "TUNAI", formatCurrency.format(tx.cashReceived), 0);
-        _printer.printLeftRight("KEMBALI", formatCurrency.format(tx.change), 0);
-      } else {
-        _printer.printLeftRight("Metode", tx.paymentMethod, 0);
+            "Bayar", formatCurrency.format(tx.cashReceived), 0);
+        _printer.printLeftRight("Kembali", formatCurrency.format(tx.change), 0);
+      } else if (tx.paymentMethod == "Hutang" || tx.paymentMethod == "Split") {
+        // Logika Hutang / Split
+        _printer.printLeftRight(
+            "Bayar", formatCurrency.format(tx.amountPaid), 0);
+        _printer.printLeftRight(
+            "Sisa Hutang", formatCurrency.format(tx.remainingDebt), 0);
+        _printer.printLeftRight("Status", tx.paymentStatus, 0);
       }
 
       _printer.printNewLine();
-      _printer.printCustom("Terima kasih!", 1, 1);
+      _printer.printCustom(
+          tx.remainingDebt > 0
+              ? "Mohon selesaikan pembayaran."
+              : "Terima kasih!",
+          1,
+          1);
       _printer.printNewLine();
-      _printer.paperCut(); // Potong kertas
+      _printer.paperCut();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
     } finally {
       if (mounted) {
         setState(() {
@@ -109,7 +121,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       body: FutureBuilder<TransactionModel>(
         future: FirebaseFirestore.instance
             .collection('transactions')
-            .doc(widget.transactionId) // 4. Gunakan widget.transactionId
+            .doc(widget.transactionId)
             .get()
             .then((doc) => TransactionModel.fromFirestore(doc)),
         builder: (context, snapshot) {
@@ -121,7 +133,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           }
 
           final tx = snapshot.data!;
-          final bool isCashPayment = tx.paymentMethod == "Tunai";
+          final bool isDebtOrSplit =
+              tx.paymentMethod == "Hutang" || tx.paymentMethod == "Split";
 
           return Padding(
             padding: const EdgeInsets.all(24.0),
@@ -130,13 +143,22 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 const Icon(Icons.check_circle, color: primaryColor, size: 80),
                 const SizedBox(height: 16),
                 const Text(
-                  "Pembayaran Berhasil!",
+                  "Transaksi Berhasil!",
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   formatDateTime.format(tx.timestamp.toDate()),
                   style: const TextStyle(fontSize: 16, color: Colors.grey),
                 ),
+                // Tampilkan Nama Pelanggan di UI
+                if (tx.customerName != null && tx.customerName!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text("Pelanggan: ${tx.customerName}",
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+
                 const SizedBox(height: 24),
                 Expanded(
                   child: ListView(
@@ -149,7 +171,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           trailing: Text(formatCurrency
                               .format(item.price * item.quantity)),
                         );
-                      }), // 5. Hapus .toList() yang tidak perlu
+                      }),
                       const Divider(thickness: 1),
                       ListTile(
                         title: const Text("TOTAL",
@@ -164,25 +186,63 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         title: const Text("Metode Bayar"),
                         trailing: Text(tx.paymentMethod),
                       ),
-                      if (isCashPayment && tx.cashReceived != null)
+
+                      // --- TAMPILAN DINAMIS BERDASARKAN METODE ---
+                      if (!isDebtOrSplit && tx.cashReceived != null) ...[
                         ListTile(
                           title: const Text("Uang Tunai"),
                           trailing:
                               Text(formatCurrency.format(tx.cashReceived)),
                         ),
-                      if (isCashPayment && tx.change != null)
+                        if (tx.change != null)
+                          ListTile(
+                            title: const Text("Kembalian"),
+                            trailing: Text(formatCurrency.format(tx.change)),
+                          ),
+                      ],
+
+                      if (isDebtOrSplit) ...[
                         ListTile(
-                          title: const Text("Kembalian"),
-                          trailing: Text(formatCurrency.format(tx.change)),
+                          title: const Text("Jumlah Dibayar"),
+                          trailing: Text(formatCurrency.format(tx.amountPaid),
+                              style: const TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold)),
                         ),
+                        ListTile(
+                          title: const Text("Sisa Hutang"),
+                          trailing: Text(
+                              formatCurrency.format(tx.remainingDebt),
+                              style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                        ListTile(
+                          title: const Text("Status"),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                                color: tx.paymentStatus == 'Lunas'
+                                    ? Colors.green[100]
+                                    : Colors.orange[100],
+                                borderRadius: BorderRadius.circular(8)),
+                            child: Text(tx.paymentStatus,
+                                style: TextStyle(
+                                    color: tx.paymentStatus == 'Lunas'
+                                        ? Colors.green
+                                        : Colors.deepOrange)),
+                          ),
+                        ),
+                      ]
                     ],
                   ),
                 ),
+                // Tombol Cetak & Selesai (Tidak berubah)
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        // 6. PERBARUI ONPRESSED
                         onPressed: _isPrinting ? null : () => _printReceipt(tx),
                         icon: _isPrinting
                             ? const SizedBox(
@@ -203,9 +263,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
+                        onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           foregroundColor: primaryColor,
