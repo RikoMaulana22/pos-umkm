@@ -32,6 +32,15 @@ class SettingsService {
     }
   }
 
+  Future<void> updateBankDetails(
+      String storeId, String bank, String number, String holder) async {
+    await _firestore.collection('stores').doc(storeId).update({
+      'bankName': bank,
+      'accountNumber': number,
+      'accountHolder': holder,
+    });
+  }
+
   // 3. Update Pengaturan Printer
   Future<void> updatePrinterSettings({
     required String storeId,
@@ -50,6 +59,21 @@ class SettingsService {
     } catch (e) {
       throw Exception("Gagal menyimpan pengaturan printer: ${e.toString()}");
     }
+  }
+
+  Future<void> updateStoreSettings({
+    required String storeId,
+    required String name,
+    required String bankName,
+    required String accountNumber,
+    required String accountHolder,
+  }) async {
+    await _firestore.collection('stores').doc(storeId).update({
+      'name': name,
+      'bankName': bankName,
+      'accountNumber': accountNumber,
+      'accountHolder': accountHolder,
+    });
   }
 
   // 4. Update Pengaturan Pajak

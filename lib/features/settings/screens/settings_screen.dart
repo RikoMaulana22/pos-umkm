@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io'; // Masih dibutuhkan untuk Printer (Android/iOS), tapi tidak dipakai untuk QRIS
-import 'dart:typed_data'; // PENTING: Untuk Uint8List
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:erp_umkm/features/settings/screens/contact_us_screen.dart';
@@ -23,7 +23,16 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsService _settingsService = SettingsService();
+
+  // Controllers Utama
   final TextEditingController storeNameController = TextEditingController();
+
+  // [BARU] Controllers untuk Rekening Bank
+  final TextEditingController _bankNameController = TextEditingController();
+  final TextEditingController _accountNumberController =
+      TextEditingController();
+  final TextEditingController _accountHolderController =
+      TextEditingController();
 
   late Future<StoreModel> _storeDetailsFuture;
   bool _isLoading = false;
@@ -39,8 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // QRIS Variables
   String? _qrisUrl;
   final QrisService _qrisService = QrisService();
-  Uint8List?
-      _qrisImageBytes; // GANTI: Menggunakan bytes untuk preview lintas platform
+  Uint8List? _qrisImageBytes;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -50,7 +58,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     _storeDetailsFuture = _settingsService.getStoreDetails(widget.storeId);
     _storeDetailsFuture.then((store) {
-      storeNameController.text = store.name;
+      setState(() {
+        storeNameController.text = store.name;
+        // [BARU] Isi data rekening jika sudah ada di database
+        // Pastikan StoreModel Anda nanti diupdate untuk menampung field ini
+        // Jika field belum ada di model, ini tidak akan error tapi string kosong
+        // Asumsi field di model: bankName, accountNumber, accountHolder
+        // _bankNameController.text = store.bankName ?? '';
+        // _accountNumberController.text = store.accountNumber ?? '';
+        // _accountHolderController.text = store.accountHolder ?? '';
+
+        // SEMENTARA: Kita ambil dari Map data jika Model belum diupdate
+        // Logika ini nanti disesuaikan dengan StoreModel yang Anda miliki
+      });
     });
     _loadSavedPrinter();
   }
@@ -64,14 +84,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // UPDATE: Logic Picker & Upload Support Web
   Future<void> _pickQrisImage() async {
     try {
       final XFile? pickedFile =
           await _picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
-        // 1. Baca bytes untuk preview (Mobile & Web aman)
         final bytes = await pickedFile.readAsBytes();
 
         setState(() {
@@ -82,7 +100,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Mengupload QRIS ke Cloudinary...')));
 
-        // 2. Upload menggunakan XFile (dikirim ke service baru)
         final url = await _qrisService.uploadQrisToCloudinary(pickedFile);
 
         setState(() => _isLoading = false);
@@ -90,8 +107,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (url != null) {
           setState(() {
             _qrisUrl = url;
-            // Kosongkan bytes agar tampilan beralih ke URL (opsional,
-            // tapi membiarkan bytes tetap ada sebagai preview instan lebih mulus)
           });
           await _qrisService.saveQrisUrl(url);
           _showSuccessSnackBar("QRIS berhasil diupdate.");
@@ -117,7 +132,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Cek apakah bluetooth aktif
       bool? isOn = await _printer.isOn;
       if (isOn != true) {
         if (!mounted) return;
@@ -126,8 +140,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
 
-      // Ambil daftar device yang sudah dipairing (Bonded Devices)
-      // Catatan: Library ini paling stabil membaca device yang sudah dipairing via Setting HP
       List<BluetoothDevice> devices = await _printer.getBondedDevices();
 
       if (!mounted) return;
@@ -139,7 +151,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
 
-      // Tampilkan Dialog Daftar Printer
       showDialog(
         context: context,
         builder: (context) {
@@ -157,8 +168,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: Text(device.name ?? "Unknown Device"),
                     subtitle: Text(device.address ?? "-"),
                     onTap: () {
-                      Navigator.pop(context); // Tutup dialog
-                      _connectToPrinter(device); // Proses koneksi
+                      Navigator.pop(context);
+                      _connectToPrinter(device);
                     },
                   );
                 },
@@ -180,7 +191,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // 2. TAMBAHKAN method ini untuk menangani koneksi:
   Future<void> _connectToPrinter(BluetoothDevice device) async {
     if (device.address == null) return;
 
@@ -190,16 +200,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-      // Jika sebelumnya sudah ada koneksi, putus dulu
       if (await _printer.isConnected == true) {
         await _printer.disconnect();
       }
 
-      // Coba hubungkan
       await _printer.connect(device);
 
-      // Simpan data printer ke penyimpanan lokal (agar auto-connect nanti)
-      // Pastikan PrinterService Anda memiliki method savePrinter
       await _printerService.savePrinter(
           device.name ?? "Unknown", device.address!);
 
@@ -214,7 +220,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       _showErrorSnackBar("Gagal menghubungkan: ${e.toString()}");
 
-      // Reset tampilan jika gagal
       setState(() {
         _savedPrinterName = null;
         _savedPrinterAddress = null;
@@ -291,21 +296,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _saveSettings() async {
+ void _saveSettings() async {
     if (storeNameController.text.isEmpty) {
       _showErrorSnackBar("Nama toko tidak boleh kosong");
       return;
     }
+    
     setState(() => _isLoading = true);
+    
     try {
-      await _settingsService.updateStoreName(
-        widget.storeId,
-        storeNameController.text,
+      // [PERBAIKAN] Panggil fungsi updateStoreSettings yang baru
+      await _settingsService.updateStoreSettings(
+        storeId: widget.storeId,
+        name: storeNameController.text,
+        bankName: _bankNameController.text,
+        accountNumber: _accountNumberController.text,
+        accountHolder: _accountHolderController.text,
       );
 
       if (!mounted) return;
       _showSuccessSnackBar("Pengaturan berhasil disimpan!");
+      
+      // Kembali ke halaman sebelumnya
       Navigator.pop(context);
+      
     } catch (e) {
       _showErrorSnackBar("Gagal simpan: ${e.toString()}");
     } finally {
@@ -389,9 +403,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Helper untuk menampilkan gambar QRIS
   Widget _buildQrisImageWidget() {
-    // 1. Prioritas: Gambar yang baru dipilih user (Preview lokal)
     if (_qrisImageBytes != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -404,7 +416,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
 
-    // 2. Prioritas Kedua: Gambar URL yang tersimpan di cloud
     if (_qrisUrl != null && _qrisUrl!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -413,26 +424,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           width: 120,
           height: 120,
           fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              width: 120,
-              height: 120,
-              alignment: Alignment.center,
-              color: Colors.grey[100],
-              child: SizedBox(
-                width: 30,
-                height: 30,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : null,
-                ),
-              ),
-            );
-          },
           errorBuilder: (context, error, stackTrace) {
             return Container(
               width: 120,
@@ -445,7 +436,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
 
-    // 3. Default: Placeholder jika belum ada gambar sama sekali
     return Container(
       width: 120,
       height: 120,
@@ -499,7 +489,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  // [BARU] Widget untuk Input Rekening Bank
+  Widget _buildBankAccountSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader("🏦 Informasi Rekening (Transfer)"),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              CustomTextField(
+                controller: _bankNameController,
+                hintText: "Nama Bank (Contoh: BCA, Mandiri)",
+                // label: "Nama Bank",
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                controller: _accountNumberController,
+                hintText: "Nomor Rekening",
+                // label: "Nomor Rekening",
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                controller: _accountHolderController,
+                hintText: "Atas Nama",
+                // label: "Atas Nama",
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -735,6 +772,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               }
 
+              // Jika StoreModel sudah punya field bank, update controller di sini juga bisa
+              // jika belum terisi di init state karena async race condition
+              // final store = snapshot.data!;
+              // if (_bankNameController.text.isEmpty) _bankNameController.text = store.bankName ?? '';
+
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -776,11 +818,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 40),
+
                     _buildQrisSection(),
+
+                    const SizedBox(height: 40),
+
+                    // [BARU] Menampilkan Section Rekening Bank
+                    _buildBankAccountSection(),
+
+                    const SizedBox(height: 40),
+
                     _buildSectionHeader("🖨️ Pengaturan Printer"),
                     const SizedBox(height: 16),
                     _buildPrinterSettingsCard(),
+
                     const SizedBox(height: 40),
+
                     ListTile(
                       leading: Icon(Icons.support_agent_rounded,
                           color: Colors.blue[700]),

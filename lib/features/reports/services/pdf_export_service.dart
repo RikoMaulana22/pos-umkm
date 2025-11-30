@@ -1,20 +1,15 @@
 // lib/features/reports/services/pdf_export_service.dart
-import 'dart:typed_data'; // Tambahan
-import 'package:flutter/foundation.dart'; // Import baru untuk kIsWeb
-import 'package:flutter/services.dart';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:open_filex/open_filex.dart';
-// import 'package:path_provider/path_provider.dart'; // Dihapus, dipindah ke helper
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-// import 'package:permission_handler/permission_handler.dart'; // Dihapus, dipindah ke helper
 import '../models/transaction_model.dart';
 import 'package:intl/intl.dart';
 
-// 1. IMPOR KONDISIONAL
-// Ini akan otomatis memilih file yang benar saat kompilasi
 import 'pdf_saver_stub.dart'
-    if (dart.library.io) 'pdf_saver_mobile.dart' // Untuk Android/iOS
-    if (dart.library.html) 'pdf_saver_web.dart'; // Untuk Web
+    if (dart.library.io) 'pdf_saver_mobile.dart'
+    if (dart.library.html) 'pdf_saver_web.dart';
 
 class PdfExportService {
   final formatCurrency =
@@ -24,13 +19,12 @@ class PdfExportService {
   Future<String?> generateSalesReport({
     required List<TransactionModel> transactions,
     required double totalOmzet,
-    required double totalProfit,
+    required double totalProfit, // Ini Laba Kotor
+    required double totalExpense, // [BARU] Total Pengeluaran
+    required double netProfit, // [BARU] Laba Bersih
     required int totalTransactions,
     required int totalItemsSold,
   }) async {
-    // 2. HAPUS SEMUA BLOK IZIN DARI SINI
-    // Logika izin sekarang ada di 'pdf_saver_mobile.dart'
-
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -42,6 +36,8 @@ class PdfExportService {
             _buildSummary(
               totalOmzet: totalOmzet,
               totalProfit: totalProfit,
+              totalExpense: totalExpense, // [BARU]
+              netProfit: netProfit, // [BARU]
               totalTransactions: totalTransactions,
               totalItemsSold: totalItemsSold,
             ),
@@ -52,42 +48,28 @@ class PdfExportService {
       ),
     );
 
-    // 3. UBAH LOGIKA PENYIMPANAN
-    final Uint8List bytes = await pdf.save(); // Dapatkan bytes PDF
+    final Uint8List bytes = await pdf.save();
     final String fileName =
-        'Laporan_Penjualan_${DateFormat('yyyy-MM-dd-HH-mm').format(DateTime.now())}.pdf';
+        'Laporan_Keuangan_${DateFormat('yyyy-MM-dd-HH-mm').format(DateTime.now())}.pdf';
 
-    // 4. PANGGIL HELPER KONDISIONAL
-    // 'savePdfFile' sekarang akan merujuk ke 'pdf_saver_mobile.dart' di HP
-    // atau 'pdf_saver_web.dart' di Web
     final String? path = await savePdfFile(fileName: fileName, bytes: bytes);
-
     return path;
   }
 
-  // Fungsi helper untuk membuka file
   Future<void> openPdfFile(String path) async {
-    // 5. PENGECEKAN kIsWeb
-    // Membuka file di web tidak dimungkinkan dari path,
-    // karena file sudah langsung di-download oleh browser.
-    if (kIsWeb) {
-      return;
-    }
-
+    if (kIsWeb) return;
     final result = await OpenFilex.open(path);
     if (result.type != ResultType.done) {
       throw Exception("Gagal membuka file PDF: ${result.message}");
     }
   }
 
-  // ... (Semua widget _buildHeader, _buildSummary, _summaryItem, _buildTransactionTable TIDAK BERUBAH) ...
-
   pw.Widget _buildHeader(pw.Context context) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
-          "Laporan Penjualan",
+          "Laporan Keuangan",
           style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 24),
         ),
         pw.Text(
@@ -102,6 +84,8 @@ class PdfExportService {
   pw.Widget _buildSummary({
     required double totalOmzet,
     required double totalProfit,
+    required double totalExpense, // [BARU]
+    required double netProfit, // [BARU]
     required int totalTransactions,
     required int totalItemsSold,
   }) {
@@ -109,18 +93,33 @@ class PdfExportService {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
-          "Ringkasan",
+          "Ringkasan Keuangan",
           style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18),
         ),
         pw.SizedBox(height: 10),
+        // Baris 1: Omzet & Laba Kotor
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             _summaryItem("Total Omzet", formatCurrency.format(totalOmzet)),
-            _summaryItem("Total Laba", formatCurrency.format(totalProfit)),
+            _summaryItem(
+                "Laba Kotor (Gross)", formatCurrency.format(totalProfit)),
           ],
         ),
         pw.SizedBox(height: 10),
+        // Baris 2: Pengeluaran & Laba Bersih [BARU]
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            _summaryItem(
+                "Total Pengeluaran", formatCurrency.format(totalExpense),
+                color: PdfColors.red900),
+            _summaryItem("Laba Bersih (Net)", formatCurrency.format(netProfit),
+                isHighlight: true),
+          ],
+        ),
+        pw.SizedBox(height: 10),
+        // Baris 3: Statistik
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -132,13 +131,17 @@ class PdfExportService {
     );
   }
 
-  pw.Widget _summaryItem(String title, String value) {
+  pw.Widget _summaryItem(String title, String value,
+      {PdfColor? color, bool isHighlight = false}) {
     return pw.Container(
       width: PdfPageFormat.a4.availableWidth / 2.2,
       padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300, width: 1),
+        border: pw.Border.all(
+            color: isHighlight ? PdfColors.green : PdfColors.grey300,
+            width: isHighlight ? 2 : 1),
         borderRadius: pw.BorderRadius.circular(5),
+        color: isHighlight ? PdfColors.green50 : null,
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -149,7 +152,12 @@ class PdfExportService {
           ),
           pw.Text(
             value,
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16),
+            style: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 16,
+              color:
+                  color ?? (isHighlight ? PdfColors.green900 : PdfColors.black),
+            ),
           ),
         ],
       ),
@@ -158,13 +166,12 @@ class PdfExportService {
 
   pw.Widget _buildTransactionTable(
       pw.Context context, List<TransactionModel> transactions) {
+    // ... (Kode tabel sama seperti sebelumnya)
     final headers = ['Tanggal', 'Items', 'Metode', 'Total', 'Laba'];
-
     final data = transactions.map((tx) {
       final itemsList = tx.items
           .map((item) => "${item.quantity}x ${item.productName}")
           .join('\n');
-
       return [
         formatDateTime.format(tx.timestamp.toDate()),
         itemsList,
@@ -177,10 +184,8 @@ class PdfExportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(
-          "Detail Transaksi",
-          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18),
-        ),
+        pw.Text("Detail Transaksi",
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18)),
         pw.SizedBox(height: 10),
         pw.TableHelper.fromTextArray(
           headers: headers,

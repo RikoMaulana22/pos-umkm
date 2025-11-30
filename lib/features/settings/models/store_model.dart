@@ -7,6 +7,9 @@ class StoreModel {
   final DateTime? subscriptionExpiry;
   // 👇 Tambahkan field ini
   final String? subscriptionPackage;
+  final String? bankName;
+  final String? accountNumber;
+  final String? accountHolder;
 
   StoreModel({
     required this.id,
@@ -17,6 +20,9 @@ class StoreModel {
     this.subscriptionExpiry,
     // 👇 Tambahkan di constructor
     this.subscriptionPackage,
+    this.bankName,
+    this.accountNumber,
+    this.accountHolder,
   });
 
   factory StoreModel.fromMap(Map<String, dynamic> map, String id) {
@@ -31,6 +37,9 @@ class StoreModel {
           : null,
       // 👇 Tambahkan di fromMap
       subscriptionPackage: map['subscriptionPackage'],
+      bankName: map['bankName'],
+      accountNumber: map['accountNumber'],
+      accountHolder: map['accountHolder'],
     );
   }
 
@@ -43,6 +52,9 @@ class StoreModel {
       'subscriptionExpiry': subscriptionExpiry,
       // 👇 Tambahkan di toMap
       'subscriptionPackage': subscriptionPackage,
+      'bankName': bankName,
+      'accountNumber': accountNumber,
+      'accountHolder': accountHolder,
     };
   }
 }

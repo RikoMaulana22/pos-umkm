@@ -6,8 +6,10 @@ import '../providers/cart_provider.dart';
 import '../services/transaction_service.dart';
 import 'receipt_screen.dart';
 import '../../../shared/theme.dart';
-// Import services lain (QrisService, SettingsService) jika diperlukan
+// Import services
 import '../../settings/services/qris_service.dart';
+import '../../settings/services/settings_service.dart'; // [BARU] Import Settings Service
+import '../../settings/models/store_model.dart'; // [BARU] Import Store Model
 
 class PaymentScreen extends StatefulWidget {
   final String storeId;
@@ -25,21 +27,28 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   final TransactionService _transactionService = TransactionService();
+  // [BARU] Service untuk ambil data rekening
+  final SettingsService _settingsService = SettingsService();
+
   final TextEditingController _cashController = TextEditingController();
-  final TextEditingController _customerController = TextEditingController(); // Controller Nama
-  
-  final formatCurrency = NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
+  final TextEditingController _customerController = TextEditingController();
+
+  final formatCurrency =
+      NumberFormat.simpleCurrency(locale: 'id_ID', decimalDigits: 0);
   final QrisService _qrisService = QrisService();
-  
+
   String? _customQrisUrl;
+  // [BARU] Variabel untuk menyimpan data toko (termasuk rekening)
+  StoreModel? _storeData;
+
   bool _isLoading = false;
   String _paymentMethod = "Tunai"; // Default
   double _cashReceived = 0.0;
   double _change = 0.0;
-  double _debtAmount = 0.0; // Untuk tampilan Split
+  double _debtAmount = 0.0;
 
   late double _totalPrice;
-  final List<double> _cashDenominations = [20000, 50000, 100000];
+  // final List<double> _cashDenominations = [20000, 50000, 100000];
 
   @override
   void initState() {
@@ -47,6 +56,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     _totalPrice = Provider.of<CartProvider>(context, listen: false).totalPrice;
     _cashController.addListener(_calculateValues);
     _loadQrisUrl();
+    _loadStoreData(); // [BARU] Panggil fungsi load data toko
   }
 
   Future<void> _loadQrisUrl() async {
@@ -54,17 +64,35 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (mounted) setState(() => _customQrisUrl = url);
   }
 
+  // [BARU] Fungsi mengambil data toko dari Firebase
+  Future<void> _loadStoreData() async {
+    try {
+      final data = await _settingsService.getStoreDetails(widget.storeId);
+      if (mounted) {
+        setState(() {
+          _storeData = data;
+        });
+      }
+    } catch (e) {
+      print("Gagal memuat data toko: $e");
+    }
+  }
+
   void _calculateValues() {
     setState(() {
-      _cashReceived = double.tryParse(_cashController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0.0;
-      
+      _cashReceived = double.tryParse(
+              _cashController.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
+          0.0;
+
       if (_paymentMethod == 'Split') {
         // Hitung sisa hutang
-        _debtAmount = (_totalPrice > _cashReceived) ? _totalPrice - _cashReceived : 0.0;
+        _debtAmount =
+            (_totalPrice > _cashReceived) ? _totalPrice - _cashReceived : 0.0;
         _change = 0.0;
       } else {
         // Hitung kembalian
-        _change = (_cashReceived >= _totalPrice) ? _cashReceived - _totalPrice : 0.0;
+        _change =
+            (_cashReceived >= _totalPrice) ? _cashReceived - _totalPrice : 0.0;
         _debtAmount = 0.0;
       }
     });
@@ -72,12 +100,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   void _confirmPayment() async {
     // Validasi input
-    if ((_paymentMethod == "Hutang" || _paymentMethod == "Split") && _customerController.text.isEmpty) {
+    if ((_paymentMethod == "Hutang" || _paymentMethod == "Split") &&
+        _customerController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Nama Pelanggan wajib diisi untuk transaksi ini"), backgroundColor: Colors.red));
+          content: Text("Nama Pelanggan wajib diisi untuk transaksi ini"),
+          backgroundColor: Colors.red));
       return;
     }
-    
+
     if (_paymentMethod == "Tunai" && _cashReceived < _totalPrice) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Uang tunai kurang"), backgroundColor: Colors.red));
@@ -92,20 +122,26 @@ class _PaymentScreenState extends State<PaymentScreen> {
         cart: cart,
         storeId: widget.storeId,
         paymentMethod: _paymentMethod,
-        cashReceived: (_paymentMethod == 'Tunai' || _paymentMethod == 'Split') ? _cashReceived : null,
-        customerName: _customerController.text.isNotEmpty ? _customerController.text : 'Umum',
+        cashReceived: (_paymentMethod == 'Tunai' || _paymentMethod == 'Split')
+            ? _cashReceived
+            : null,
+        customerName: _customerController.text.isNotEmpty
+            ? _customerController.text
+            : 'Umum',
       );
 
       if (!mounted) return;
-      
+
       // Ke layar struk
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => ReceiptScreen(transactionId: transactionId)),
+        MaterialPageRoute(
+            builder: (_) => ReceiptScreen(transactionId: transactionId)),
       );
       cart.clearCart();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -113,11 +149,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Opsi Pembayaran yang tersedia
-    final List<String> methods = ['Tunai', 'Transfer', 'QRIS', 'Hutang', 'Split'];
+    final List<String> methods = [
+      'Tunai',
+      'Transfer',
+      'QRIS',
+      'Hutang',
+      'Split'
+    ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Pembayaran"), backgroundColor: primaryColor, foregroundColor: Colors.white),
+      appBar: AppBar(
+          title: const Text("Pembayaran"),
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -126,14 +170,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Display Total
-                Text(formatCurrency.format(_totalPrice),
+                Text(
+                  formatCurrency.format(_totalPrice),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: primaryColor),
+                  style: const TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor),
                 ),
                 const SizedBox(height: 24),
-                
-                // Pilihan Metode Pembayaran (Wrap Chips)
-                const Text("Metode Pembayaran", style: TextStyle(fontWeight: FontWeight.bold)),
+
+                // Pilihan Metode Pembayaran
+                const Text("Metode Pembayaran",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -143,7 +192,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       label: Text(method),
                       selected: isSelected,
                       selectedColor: primaryColor,
-                      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
+                      labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black),
                       onSelected: (selected) {
                         if (selected) {
                           setState(() {
@@ -173,15 +223,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                 // UI Dinamis berdasarkan metode
                 _buildDynamicContent(),
-                
+
                 const SizedBox(height: 80), // Space for button
               ],
             ),
           ),
-          
-          // Tombol Konfirmasi (Sama seperti sebelumnya)
+
+          // Tombol Konfirmasi
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Container(
               padding: const EdgeInsets.all(24),
               color: Colors.white,
@@ -191,9 +243,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   backgroundColor: primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Konfirmasi Pembayaran", style: TextStyle(fontSize: 18, color: Colors.white)),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Konfirmasi Pembayaran",
+                        style: TextStyle(fontSize: 18, color: Colors.white)),
               ),
             ),
           )
@@ -220,40 +273,122 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
             const SizedBox(height: 16),
             if (_paymentMethod == 'Split')
-               Container(
-                 padding: const EdgeInsets.all(16),
-                 decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-                 child: Row(
-                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                   children: [
-                     const Text("Sisa Hutang:", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                     Text(formatCurrency.format(_debtAmount), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18)),
-                   ],
-                 ),
-               ),
-             if (_paymentMethod == 'Tunai')
-                Row(
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8)),
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Kembalian:"),
-                    Text(formatCurrency.format(_change), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
+                    const Text("Sisa Hutang:",
+                        style: TextStyle(
+                            color: Colors.red, fontWeight: FontWeight.bold)),
+                    Text(formatCurrency.format(_debtAmount),
+                        style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18)),
                   ],
-                )
+                ),
+              ),
+            if (_paymentMethod == 'Tunai')
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Kembalian:"),
+                  Text(formatCurrency.format(_change),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.green)),
+                ],
+              )
           ],
         );
+
+      // [PERUBAHAN UTAMA DI SINI] Tampilan Transfer
+      case 'Transfer':
+        if (_storeData == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final bankName = _storeData?.bankName;
+        final accNumber = _storeData?.accountNumber;
+        final accHolder = _storeData?.accountHolder;
+        final bool hasBankData = bankName != null && bankName.isNotEmpty;
+
+        if (!hasBankData) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8)),
+            child: const Center(
+              child: Text(
+                  "Rekening Bank belum diatur.\nSilakan atur di menu Pengaturan.",
+                  textAlign: TextAlign.center),
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade200),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.blue.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4))
+              ]),
+          child: Column(
+            children: [
+              const Text("Silakan Transfer ke:",
+                  style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 8),
+              Text(bankName ?? "Bank",
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 4),
+              SelectableText(
+                  // Agar nomor rekening bisa dicopy
+                  accNumber ?? "-",
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 28,
+                      color: primaryColor)),
+              const SizedBox(height: 4),
+              Text("a.n ${accHolder ?? "-"}",
+                  style: const TextStyle(fontSize: 16)),
+              const Divider(height: 30),
+              const Text("Pastikan bukti transfer sudah diterima.",
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic)),
+            ],
+          ),
+        );
+
       case 'Hutang':
         return Container(
-           padding: const EdgeInsets.all(16),
-           decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
-           child: const Center(child: Text("Total transaksi akan dicatat sebagai hutang.")),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8)),
+          child: const Center(
+              child: Text("Total transaksi akan dicatat sebagai hutang.")),
         );
       case 'QRIS':
-        // Gunakan widget QRIS yang sudah ada
-        return _customQrisUrl != null 
-          ? Image.network(_customQrisUrl!, height: 200)
-          : const Center(child: Text("Scan QRIS"));
+        return _customQrisUrl != null
+            ? Image.network(_customQrisUrl!, height: 200)
+            : const Center(child: Text("Scan QRIS"));
       default:
-        return const Center(child: Text("Selesaikan pembayaran melalui metode yang dipilih."));
+        return const Center(
+            child: Text("Selesaikan pembayaran melalui metode yang dipilih."));
     }
   }
 }

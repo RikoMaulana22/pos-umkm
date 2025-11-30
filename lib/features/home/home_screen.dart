@@ -8,6 +8,8 @@ import '../reports/screens/report_screen.dart';
 import '../settings/screens/settings_screen.dart';
 import '../admin/screens/manage_cashier_screen.dart';
 import '../reports/screens/debt_list_screen.dart';
+// [BARU] Import ExpenseScreen
+import '../reports/screens/expense_screen.dart';
 
 // -----------------------------------------------------------------------------------------------------------------
 // HomeScreen Design Modern
@@ -69,7 +71,7 @@ class HomeScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     final userName = user?.displayName != null && user!.displayName!.isNotEmpty
         ? user.displayName
-        : user?.email?.split('@')[0] ?? storeId ?? 'User';
+        : user?.email?.split('@')[0] ?? storeId;
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Column(
@@ -289,7 +291,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
 
-                      // 3. Catatan Hutang (MENU BARU)
+                      // 3. Catatan Hutang
                       _buildModernMenuCard(
                         context: context,
                         label: "Catatan Hutang",
@@ -298,7 +300,7 @@ class HomeScreen extends StatelessWidget {
                         color: Colors.redAccent,
                         onTap: () => _goTo(
                           context,
-                          const DebtListScreen(), // Navigasi ke DebtListScreen
+                          const DebtListScreen(),
                         ),
                       ),
 
@@ -318,7 +320,20 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
 
-                      // 5. Pengaturan (Admin Only)
+                      // 5. [BARU] Pengeluaran
+                      _buildModernMenuCard(
+                        context: context,
+                        label: "Pengeluaran",
+                        subtitle: "Biaya Operasional",
+                        icon: Icons.money_off_rounded,
+                        color: Colors.red,
+                        onTap: () => _goTo(
+                          context,
+                          ExpenseScreen(storeId: storeId),
+                        ),
+                      ),
+
+                      // 6. Pengaturan (Admin Only)
                       if (isAdmin)
                         _buildModernMenuCard(
                           context: context,
@@ -332,7 +347,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
 
-                      // 6. Manajemen Kasir (Premium Only)
+                      // 7. Manajemen Kasir (Premium Only)
                       if (isSilverOrGold && isAdmin)
                         _buildModernMenuCard(
                           context: context,
