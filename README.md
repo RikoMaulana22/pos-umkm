@@ -64,7 +64,7 @@ Ikuti langkah-langkah ini untuk menjalankan proyek di lokal Anda:
 1.  **Clone Repositori**
     ```bash
     git clone [https://github.com/RikoMaulana22/pos-umkm.git](https://github.com/RikoMaulana22/pos-umkm.git)
-    cd erp_umkm
+    cd pos_umkm
     ```
 
 2.  **Install Dependencies**
